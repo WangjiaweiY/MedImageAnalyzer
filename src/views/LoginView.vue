@@ -111,13 +111,15 @@ const handleLogin = async () => {
 
         // 解析 JSON 数据
         const result = await response.json()
+        console.log(result)
 
         // 根据后端返回的结果进行处理
         if (result.code === 1) {
           message.success('登录成功')
+          localStorage.setItem('isLoggedIn', 'true');
           router.push('/analysis') // 跳转到分析页面
         } else {
-          message.error(result.message || '用户名或密码错误')
+          message.error(result.msg)
         }
       } catch (error) {
         // 捕获网络或接口异常

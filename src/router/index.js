@@ -22,10 +22,14 @@ const router = createRouter({
 // 路由守卫
 router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth) {
-    // 这里可以添加登录验证逻辑
-    next()
+    const isLoggedIn = localStorage.getItem('isLoggedIn');  // 从 localStorage 获取登录状态
+    if (isLoggedIn) {
+      next();  // 用户已登录，继续访问
+    } else {
+      next('/');  // 用户未登录，重定向到登录页
+    }
   } else {
-    next()
+    next();  // 对于不需要登录的页面，直接放行
   }
 })
 
