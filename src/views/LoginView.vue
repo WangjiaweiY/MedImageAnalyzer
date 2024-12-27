@@ -60,6 +60,7 @@ import { useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { NCard, NForm, NFormItem, NInput, NButton, NIcon } from 'naive-ui'
 import { UserOutlined, LockOutlined } from '@vicons/antd'
+import axios from 'axios'
 
 const router = useRouter()
 const message = useMessage()
@@ -84,21 +85,51 @@ const rules = {
   }
 }
 
-const handleLogin = () => {
-  formRef.value?.validate((errors) => {
+const handleLogin = async () => {
+  // 先进行表单验证
+  formRef.value?.validate(async (errors) => {
     if (!errors) {
-      loading.value = true
-      // 模拟登录验证
-      if (formValue.username === 'admin' && formValue.password === '123456') {
-        message.success('登录成功')
-        router.push('/analysis')
-      } else {
-        message.error('用户名或密码错误')
+      loading.value = true // 开始加载
+      console.log(formValue.username,formValue.password)
+      try {
+        // 调用后端登录接口
+        const response = await fetch('/api/user/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: formValue.username,
+            password: formValue.password,
+          }),
+        })
+
+        // 检查 HTTP 响应状态
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        // 解析 JSON 数据
+        const result = await response.json()
+
+        // 根据后端返回的结果进行处理
+        if (result.code === 1) {
+          message.success('登录成功')
+          router.push('/analysis') // 跳转到分析页面
+        } else {
+          message.error(result.message || '用户名或密码错误')
+        }
+      } catch (error) {
+        // 捕获网络或接口异常
+        console.error('登录请求失败:', error)
+        message.error('登录失败，请稍后重试')
+      } finally {
+        loading.value = false // 请求完成，结束加载
       }
-      loading.value = false
     }
   })
 }
+
 </script>
 
 <style scoped>
