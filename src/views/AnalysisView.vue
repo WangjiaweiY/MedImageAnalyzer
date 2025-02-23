@@ -3,72 +3,80 @@
     <!-- 顶部导航栏 -->
     <n-layout-header class="header">
       <div class="header-content">
-        <div class="logo">西北大学智能信息处理实验室-医学影像病理图像</div>
+        <div class="logo">多免疫组化病理图像智能分析系统</div>
+        <div class="controls">
+          <n-button-group>
+            <n-button 
+              v-for="num in [1, 2, 4, 9]" 
+              :key="num"
+              @click="changeLayout(num)"
+              :type="layoutType === num ? 'primary' : 'default'"
+            >
+              {{ num }}图模式
+            </n-button>
+          </n-button-group>
+        </div>
         <div class="user-info">
+          <n-upload
+            action="http://localhost:8080/api/dzi/upload"
+            :show-file-list="false"
+            accept=".zip"
+            @progress="handleProgress"
+            @finish="handleUploadSuccess"
+            @error="handleUploadError"
+          >
+            <n-button type="primary" class="upload-btn">
+              上传ZIP文件
+            </n-button>
+          </n-upload>
           <n-dropdown :options="userOptions" @select="handleUserAction">
-            <n-button text
-            class="admin">
+            <n-button text class="admin">
               管理员
-              <template #icon>
-                <n-icon><UserOutlined /></n-icon>
-              </template>
+              <n-icon><UserOutlined /></n-icon>
             </n-button>
           </n-dropdown>
         </div>
       </div>
     </n-layout-header>
 
-    <n-layout has-sider>
-      <!-- 侧边栏 -->
+    <!-- 主体区域：左侧为文件目录列表，右侧为图像展示区域 -->
+    <n-layout has-sider class="content-wrapper">
+      <!-- 侧边栏：文件目录列表 -->
       <n-layout-sider
-        bordered
-        collapse-mode="width"
-        :collapsed-width="64"
-        :width="240"
-        :collapsed="collapsed"
+        collapsible
+        :width="280"
+        :collapsed-width="0"
         show-trigger
-        @collapse="collapsed = true"
-        @expand="collapsed = false"
+        class="file-sider"
       >
-        <n-menu
-          :collapsed="collapsed"
-          :collapsed-width="64"
-          :collapsed-icon-size="22"
-          :options="menuOptions"
-          :value="selectedKey"
-          @update:value="handleMenuSelect"
-        />
+        <n-list class="file-list" hoverable clickable>
+          <n-list-item 
+            v-for="item in fileList" 
+            :key="item.folderName"
+            @click="selectFolder(item)"
+            :class="{ 'selected': selectedFolder === item.folderName }"
+          >
+            <n-thing
+              :title="item.folderName"
+              :description="item.time || '未知时间'"
+            />
+          </n-list-item>
+        </n-list>
       </n-layout-sider>
 
-      <!-- 主要内容区域 -->
+      <!-- 展示区域：支持1/2/4/9图模式 -->
       <n-layout-content class="content">
-        <div class="image-container">
-          <div class="image-box">
-            <h3>原始图像</h3>
-            <div 
-              class="image-view" 
-              @wheel="zoomImage($event, 'original')"
-              @mousedown="startDrag($event, 'original')"
-            >
-              <img 
-                :src="originalImage" 
-                alt="原始图像" 
-                :style="{ transform: `scale(${scale}) translate(${translateXOriginal}px, ${translateYOriginal}px)`, transformOrigin: transformOriginOriginal }"
-              >
-            </div>
-          </div>
-          <div class="image-box">
-            <h3>分割结果</h3>
-            <div 
-              class="image-view" 
-              @wheel="zoomImage($event, 'segmented')"
-              @mousedown="startDrag($event, 'segmented')"
-            >
-              <img 
-                :src="segmentedImage" 
-                alt="分割图像" 
-                :style="{ transform: `scale(${scale}) translate(${translateXSegmented}px, ${translateYSegmented}px)`, transformOrigin: transformOriginSegmented }"
-              >
+        <div class="viewer-container" :class="`layout-${layoutType}`">
+          <div 
+            v-for="(v, index) in layoutType" 
+            :key="index"
+            class="viewer-wrapper"
+            @click="selectViewer(index)"
+            :class="{ 'selected-viewer': selectedViewerIndex === index }"
+          >
+            <div :id="`osdViewer-${index}`" class="osd-viewer"></div>
+            <div v-if="!hasDzi(index)" class="placeholder">
+              <n-empty size="large" description="请选择图像文件"></n-empty>
             </div>
           </div>
         </div>
@@ -78,84 +86,52 @@
 </template>
 
 <script setup>
-import { ref, h } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   NLayout, 
   NLayoutHeader, 
-  NLayoutContent, 
   NLayoutSider,
-  NMenu,
-  NButton,
-  NDropdown,
-  NIcon
+  NLayoutContent, 
+  NButton, 
+  NButtonGroup,
+  NDropdown, 
+  NIcon, 
+  NUpload, 
+  NList, 
+  NListItem,
+  NThing,
+  NEmpty,
+  useMessage
 } from 'naive-ui'
-import { 
-  HomeOutlined, 
-  UserOutlined, 
-  SettingOutlined,
-  FileImageOutlined,
-  LogoutOutlined
-} from '@vicons/antd'
+import { UserOutlined, SettingOutlined, LogoutOutlined } from '@vicons/antd'
+import OpenSeadragon from 'openseadragon'
+import { h } from 'vue'
 
 const router = useRouter()
-const collapsed = ref(false)
-const selectedKey = ref('image-analysis')
+const message = useMessage()
 
-// 图片路径
-const originalImage = ref('/imgs/binary_segmentation.png')
-const segmentedImage = ref('/imgs/binary_segmentation-mask.png')
-
-// 初始缩放比例设置为 2.5
-const scale = ref(2.5)
-
-// 缩放中心
-const transformOriginOriginal = ref('center center')
-const transformOriginSegmented = ref('center center')
-
-// 平移位置
-const translateXOriginal = ref(0)
-const translateYOriginal = ref(0)
-const translateXSegmented = ref(0)
-const translateYSegmented = ref(0)
-
-// 菜单配置
-const menuOptions = [
-  {
-    label: '首页',
-    key: 'home',
-    icon: renderIcon(HomeOutlined)
-  },
-  {
-    label: '图像分析',
-    key: 'image-analysis',
-    icon: renderIcon(FileImageOutlined)
-  },
-  {
-    label: '系统设置',
-    key: 'settings',
-    icon: renderIcon(SettingOutlined)
-  }
-]
+// 布局、文件列表、展示相关响应式变量
+const layoutType = ref(1) // 当前布局模式：1,2,4,9
+const fileList = ref([])  // 文件目录列表
+const selectedFolder = ref("") // 选中的文件夹（目录名称）
+const selectedViewerIndex = ref(null) // 当前选中的展示框索引（0-indexed）
+const viewers = ref([])  // 保存每个 OpenSeadragon 实例
+const uploadStatus = ref("") // 上传状态反馈信息
 
 // 用户下拉菜单选项
 const userOptions = [
   {
     label: '个人设置',
     key: 'settings',
-    icon: renderIcon(SettingOutlined)
+    icon: () => h(NIcon, null, { default: () => h(SettingOutlined) })
   },
   {
     label: '退出登录',
     key: 'logout',
-    icon: renderIcon(LogoutOutlined)
+    icon: () => h(NIcon, null, { default: () => h(LogoutOutlined) })
   }
 ]
-
-// 渲染图标的辅助函数
-function renderIcon(icon) {
-  return () => h(NIcon, null, { default: () => h(icon) })
-}
 
 // 处理用户菜单操作
 const handleUserAction = (key) => {
@@ -164,144 +140,238 @@ const handleUserAction = (key) => {
   }
 }
 
-// 处理侧边栏菜单选择
-const handleMenuSelect = (key) => {
-  selectedKey.value = key
+// 切换布局模式
+const changeLayout = (num) => {
+  layoutType.value = num
+  // 重置选中状态
+  selectedViewerIndex.value = null
+  // 销毁所有旧的查看器实例
+  viewers.value.forEach(v => v && v.destroy())
+  viewers.value = []
+  // 重新初始化查看器（如果已选择图像，则更新对应的展示）
+  if (selectedFolder.value) initViewers()
 }
 
-// 图片缩放功能
-const zoomImage = (event, type) => {
-  event.preventDefault()
-  const scaleChange = event.deltaY > 0 ? -0.1 : 0.1
-  scale.value = Math.min(Math.max(scale.value + scaleChange, 0.5), 8)
+// 上传进度处理
+const handleProgress = (e) => {
+  // e.progress 代表上传进度，数值 0-100
+  uploadStatus.value = `上传中... ${e.progress}%`
+}
 
-  const rect = event.currentTarget.getBoundingClientRect()
-  const offsetX = event.clientX - rect.left
-  const offsetY = event.clientY - rect.top
-  const originX = (offsetX / rect.width) * 100
-  const originY = (offsetY / rect.height) * 100
+// 上传成功处理
+const handleUploadSuccess = (res) => {
+  uploadStatus.value = "上传完成！"
+  fetchFileList()
+  message.success("上传成功")
+}
 
-  if (type === 'original') {
-    transformOriginOriginal.value = `${originX}% ${originY}%`
-    transformOriginSegmented.value = `${originX}% ${originY}%`
-  } else if (type === 'segmented') {
-    transformOriginSegmented.value = `${originX}% ${originY}%`
-    transformOriginOriginal.value = `${originX}% ${originY}%`
+// 上传错误处理
+const handleUploadError = (err) => {
+  uploadStatus.value = "上传失败"
+  message.error("上传失败")
+}
+
+// 拉取文件目录列表
+const fetchFileList = async () => {
+  try {
+    const res = await fetch('http://localhost:8080/api/dzi/list')
+    fileList.value = await res.json()
+  } catch (error) {
+    console.error('获取文件列表失败:', error)
   }
 }
 
-// 图片拖动功能
-let isDragging = false
-let startX, startY
+// 用户点击某个目录项，选择上传后生成的文件夹
+const selectFolder = (item) => {
+  selectedFolder.value = item.folderName
+  // 构造 DZI描述文件 URL：假设描述文件名称固定为 test.xml
+  updateViewerDziUrl(`http://localhost:8080/processed/${item.folderName}/`)
+}
 
-const startDrag = (event, type) => {
-  event.preventDefault()
-  isDragging = true
-  startX = event.clientX
-  startY = event.clientY
+// 更新当前选中 viewer 的 DZI URL
+const updateViewerDziUrl = (url) => {
+  if (selectedViewerIndex.value === null) {
+    message.warning('请先点击一个展示框进行选择')
+    return
+  }
+  // 销毁旧的实例
+  if (viewers.value[selectedViewerIndex.value]) {
+    viewers.value[selectedViewerIndex.value].destroy()
+  }
+  viewers.value[selectedViewerIndex.value] = OpenSeadragon({
+    id: `osdViewer-${selectedViewerIndex.value}`,
+    prefixUrl: 'http://localhost:8080/openseadragon-bin/images/',
+    tileSources: {
+      Image: {
+        xmlns: "http://schemas.microsoft.com/deepzoom/2008",
+        Url: url,
+        Overlap: "1",
+        TileSize: "254",
+        Format: "jpeg",
+        Size: { Height: "32893", Width: "46000" }
+      }
+    },
+    // 开启鼠标滚轮缩放
+    gestureSettingsMouse: {
+      scrollToZoom: true
+    },
+    showNavigator: true,
+    fullscreen: false
+  })
+}
 
-  const onMouseMove = (e) => {
-    if (!isDragging) return
-    const dx = e.clientX - startX
-    const dy = e.clientY - startY
-
-    if (type === 'original') {
-      translateXOriginal.value += dx
-      translateYOriginal.value += dy
-      translateXSegmented.value += dx
-      translateYSegmented.value += dy
-    } else if (type === 'segmented') {
-      translateXSegmented.value += dx
-      translateYSegmented.value += dy
-      translateXOriginal.value += dx
-      translateYOriginal.value += dy
+// 初始化所有展示框（各个 viewer 默认无内容）
+const initViewers = () => {
+  viewers.value.forEach(v => v && v.destroy())
+  viewers.value = []
+  nextTick(() => {
+    for (let i = 0; i < layoutType.value; i++) {
+      viewers.value.push(null)
     }
-
-    startX = e.clientX
-    startY = e.clientY
-  }
-
-  const onMouseUp = () => {
-    isDragging = false
-    window.removeEventListener('mousemove', onMouseMove)
-    window.removeEventListener('mouseup', onMouseUp)
-  }
-
-  window.addEventListener('mousemove', onMouseMove)
-  window.addEventListener('mouseup', onMouseUp)
+  })
 }
+
+// 点击 viewer-wrapper 选择展示区域
+const selectViewer = (index) => {
+  selectedViewerIndex.value = index
+}
+
+// 判断某个 viewer 是否有加载图像
+const hasDzi = (index) => {
+  return viewers.value[index] !== null
+}
+
+// 页面加载时拉取文件列表和初始化展示区域
+onMounted(() => {
+  fetchFileList()
+  initViewers()
+})
 </script>
 
 <style scoped>
 .layout {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
   height: 64px;
   padding: 0 24px;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  background: #1890ff;
+  color: white;
 }
 
 .header-content {
   height: 100%;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 }
 
 .logo {
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
+}
+
+.controls {
+  flex: 1;
+  margin: 0 40px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.upload-btn {
+  margin-right: 15px;
+}
+
+.upload-status {
+  text-align: center;
+  font-size: 16px;
+  color: #1890ff;
+  margin-top: 10px;
+}
+
+.content-wrapper {
+  flex: 1;
+  height: calc(100vh - 64px);
+  display: flex;
+}
+
+.file-sider {
+  background: #fff;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+}
+
+.file-list {
+  padding: 12px;
+}
+
+.selected {
+  background: #f0faff;
+  border-left: 3px solid #1890ff;
 }
 
 .content {
-  padding: 24px;
+  flex: 1;
+  padding: 20px;
   background: #f5f7f9;
 }
 
-.image-container {
-  display: flex;
-  gap: 24px;
-  justify-content: center;
-  padding: 20px;
-  background: #fff;
+.viewer-container {
+  height: 100%;
+  display: grid;
+  gap: 20px;
+}
+
+.viewer-wrapper {
+  position: relative;
+  background: white;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.image-box {
-  flex: 1;
-  max-width: 800px;
-}
-
-.image-box h3 {
-  text-align: center;
-  margin-bottom: 16px;
-  color: #333;
-  font-size: 16px;
-}
-
-.image-view {
-  width: 100%;
-  height: 600px;
-  border: 1px solid #eee;
-  border-radius: 4px;
   overflow: hidden;
-  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  cursor: pointer;
+}
+
+.selected-viewer {
+  border: 3px solid #1890ff;
+}
+
+.placeholder {
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: grab;
+  background: rgba(245,247,249,0.5);
 }
 
-.image-view:active {
-  cursor: grabbing;
+.osd-viewer {
+  width: 100%;
+  height: 100%;
 }
 
-.image-view img {
-  transition: transform 0.2s ease, transform-origin 0.2s ease;
+/* 布局样式 */
+.layout-1 {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.layout-2 {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 1fr;
+}
+
+.layout-4 {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+
+.layout-9 {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
 }
 </style>
-  

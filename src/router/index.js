@@ -15,7 +15,7 @@ const router = createRouter({
       name: 'analysis',
       component: AnalysisView,
       meta: { requiresAuth: true }
-    }
+    },
   ]
 })
 

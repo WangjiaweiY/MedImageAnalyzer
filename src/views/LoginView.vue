@@ -109,17 +109,16 @@ const handleLogin = async () => {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
 
-        // 解析 JSON 数据
-        const result = await response.json()
-        console.log(result)
+        console.log(response.json())
+        console.log(response.status)
 
         // 根据后端返回的结果进行处理
-        if (result.code === 1) {
+        if (response.status === 200) {
           message.success('登录成功')
           localStorage.setItem('isLoggedIn', 'true');
           router.push('/analysis') // 跳转到分析页面
         } else {
-          message.error(result.msg)
+          message.error(response.json().msg)
         }
       } catch (error) {
         // 捕获网络或接口异常

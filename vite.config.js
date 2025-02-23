@@ -13,7 +13,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://localhost:8080', // 后端服务地址
+      '/api': 'http://127.0.0.1:8080', // 后端服务地址
     }
   }
 }) 
