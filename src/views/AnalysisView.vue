@@ -15,6 +15,10 @@
               {{ num }}图模式
             </n-button>
           </n-button-group>
+          <!-- 新增同步按钮 -->
+          <n-button @click="toggleSync" :type="syncEnabled ? 'primary' : 'default'" class="sync-btn">
+            同步：{{ syncEnabled ? '开启' : '关闭' }}
+          </n-button>
         </div>
         <div class="user-info">
           <n-upload
@@ -119,6 +123,9 @@ const selectedViewerIndex = ref(null) // 当前选中的展示框索引（0-inde
 const viewers = ref([])  // 保存每个 OpenSeadragon 实例
 const uploadStatus = ref("") // 上传状态反馈信息
 
+// 新增：是否启用同步的开关
+const syncEnabled = ref(true)
+
 // 用户下拉菜单选项
 const userOptions = [
   {
@@ -143,18 +150,24 @@ const handleUserAction = (key) => {
 // 切换布局模式
 const changeLayout = (num) => {
   layoutType.value = num
-  // 重置选中状态
   selectedViewerIndex.value = null
-  // 销毁所有旧的查看器实例
   viewers.value.forEach(v => v && v.destroy())
   viewers.value = []
-  // 重新初始化查看器（如果已选择图像，则更新对应的展示）
   if (selectedFolder.value) initViewers()
+}
+
+// 切换同步功能
+const toggleSync = () => {
+  syncEnabled.value = !syncEnabled.value
+  message.info(`图像同步已${syncEnabled.value ? '开启' : '关闭'}`)
+  // 重新设置同步事件（若需要移除已有事件，可销毁后重新初始化查看器）
+  if (syncEnabled.value) {
+    setupSync()
+  }
 }
 
 // 上传进度处理
 const handleProgress = (e) => {
-  // e.progress 代表上传进度，数值 0-100
   uploadStatus.value = `上传中... ${e.progress}%`
 }
 
@@ -194,7 +207,6 @@ const updateViewerDziUrl = (url) => {
     message.warning('请先点击一个展示框进行选择')
     return
   }
-  // 销毁旧的实例
   if (viewers.value[selectedViewerIndex.value]) {
     viewers.value[selectedViewerIndex.value].destroy()
   }
@@ -211,13 +223,14 @@ const updateViewerDziUrl = (url) => {
         Size: { Height: "32893", Width: "46000" }
       }
     },
-    // 开启鼠标滚轮缩放
     gestureSettingsMouse: {
       scrollToZoom: true
     },
     showNavigator: true,
     fullscreen: false
   })
+  // 设置同步事件，如果同步开启
+  if (syncEnabled.value) setupSync()
 }
 
 // 初始化所有展示框（各个 viewer 默认无内容）
@@ -231,9 +244,53 @@ const initViewers = () => {
   })
 }
 
+// 全局同步标志，防止递归同步
+let isSyncing = false;
+
+const setupSync = () => {
+  viewers.value.forEach((viewer, idx) => {
+    if (viewer) {
+      if (!viewer._syncHandlersBound) {
+        viewer.addHandler('zoom', () => {
+          if (syncEnabled.value && !isSyncing) {
+            isSyncing = true;
+            const zoom = viewer.viewport.getZoom();
+            console.log(`Viewer ${idx} zoom event: zoom=${zoom}`);
+            viewers.value.forEach((v, i) => {
+              if (v !== viewer && v) {
+                v.viewport.zoomTo(zoom);
+              }
+            });
+            isSyncing = false;
+          }
+        });
+        viewer.addHandler('pan', () => {
+          if (syncEnabled.value && !isSyncing) {
+            isSyncing = true;
+            const center = viewer.viewport.getCenter();
+            console.log(`Viewer ${idx} pan event: center=(${center.x.toFixed(3)}, ${center.y.toFixed(3)})`);
+            viewers.value.forEach((v, i) => {
+              if (v !== viewer && v) {
+                v.viewport.panTo(center);
+              }
+            });
+            isSyncing = false;
+          }
+        });
+        // 标记该viewer已绑定同步事件
+        viewer._syncHandlersBound = true;
+      }
+    }
+  });
+};
+
+
+
+
 // 点击 viewer-wrapper 选择展示区域
 const selectViewer = (index) => {
   selectedViewerIndex.value = index
+  // message.info(`已选择展示区域 ${index + 1}`)
 }
 
 // 判断某个 viewer 是否有加载图像
@@ -277,6 +334,10 @@ onMounted(() => {
 .controls {
   flex: 1;
   margin: 0 40px;
+}
+
+.sync-btn {
+  margin-left: 20px;
 }
 
 .user-info {
