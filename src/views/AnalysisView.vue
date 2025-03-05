@@ -161,7 +161,7 @@ const toggleFolder = async (folderName) => {
 // 选择子项（第二级目录或文件）时，直接调用 getDziFile 接口加载资源
 const selectDziItem = (parentFolder, item) => {
   // 直接构造 URL，注意不再递归展开目录，而是直接加载资源
-  const url = `http://localhost:8080/api/dzi/processed/${parentFolder}/${item.name}`;
+  const url = `http://localhost:8080/api/dzi/processed/${parentFolder}/${item.name}/`;
   updateViewerDziUrl(url);
 }
 
