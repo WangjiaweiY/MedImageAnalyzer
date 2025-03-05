@@ -15,24 +15,20 @@
               {{ num }}图模式
             </n-button>
           </n-button-group>
-          <!-- 新增同步按钮 -->
+          <!-- 同步按钮 -->
           <n-button @click="toggleSync" :type="syncEnabled ? 'primary' : 'default'" class="sync-btn">
             同步：{{ syncEnabled ? '开启' : '关闭' }}
           </n-button>
         </div>
         <div class="user-info">
-          <n-upload
-            action="http://localhost:8080/api/dzi/upload"
-            :show-file-list="false"
-            accept=".zip"
-            @progress="handleProgress"
-            @finish="handleUploadSuccess"
-            @error="handleUploadError"
-          >
-            <n-button type="primary" class="upload-btn">
-              上传ZIP文件
-            </n-button>
-          </n-upload>
+          <!-- 合并后的上传整个文件夹（配准图像） -->
+          <div class="folder-upload">
+            <label class="folder-upload-label">
+              <input type="file" webkitdirectory multiple @change="handleFolderAndUpload" class="folder-input" />
+              <span class="folder-upload-button">上传</span>
+            </label>
+          </div>
+
           <n-dropdown :options="userOptions" @select="handleUserAction">
             <n-button text class="admin">
               管理员
@@ -53,6 +49,11 @@
         show-trigger
         class="file-sider"
       >
+        <div class="sidebar-header">
+          <n-button circle type="primary" size="small" @click="fetchFileList">
+            <n-icon><ReloadOutlined /></n-icon>
+          </n-button>
+        </div>
         <n-list class="file-list" hoverable clickable>
           <n-list-item 
             v-for="item in fileList" 
@@ -62,7 +63,6 @@
           >
             <n-thing
               :title="item.folderName"
-              :description="item.time || '未知时间'"
             />
           </n-list-item>
         </n-list>
@@ -90,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   NLayout, 
@@ -110,18 +110,18 @@ import {
 } from 'naive-ui'
 import { UserOutlined, SettingOutlined, LogoutOutlined } from '@vicons/antd'
 import OpenSeadragon from 'openseadragon'
-import { h } from 'vue'
+import { ReloadOutlined } from '@vicons/antd'
+
 
 const router = useRouter()
 const message = useMessage()
 
 // 布局、文件列表、展示相关响应式变量
 const layoutType = ref(1) // 当前布局模式：1,2,4,9
-const fileList = ref([])  // 文件目录列表
-const selectedFolder = ref("") // 选中的文件夹（目录名称）
+const fileList = ref([])  // 文件目录列表（用于DZI文件展示）
+const selectedFolder = ref("") // 选中的DZI文件夹
 const selectedViewerIndex = ref(null) // 当前选中的展示框索引（0-indexed）
-const viewers = ref([])  // 保存每个 OpenSeadragon 实例
-const uploadStatus = ref("") // 上传状态反馈信息
+const viewers = ref([])  // 保存每个OpenSeadragon实例
 
 // 新增：是否启用同步的开关
 const syncEnabled = ref(true)
@@ -160,29 +160,50 @@ const changeLayout = (num) => {
 const toggleSync = () => {
   syncEnabled.value = !syncEnabled.value
   message.info(`图像同步已${syncEnabled.value ? '开启' : '关闭'}`)
-  // 重新设置同步事件（若需要移除已有事件，可销毁后重新初始化查看器）
   if (syncEnabled.value) {
     setupSync()
   }
 }
 
-// 上传进度处理
-const handleProgress = (e) => {
-  uploadStatus.value = `上传中... ${e.progress}%`
-}
+// 保存选择的文件夹内所有文件
+const selectedFolderFiles = ref([]);
 
-// 上传成功处理
-const handleUploadSuccess = (res) => {
-  uploadStatus.value = "上传完成！"
-  fetchFileList()
-  message.success("上传成功")
-}
+// 处理文件夹选择并立即上传
+const handleFolderAndUpload = (event) => {
+  selectedFolderFiles.value = Array.from(event.target.files);
+  if (selectedFolderFiles.value.length > 0) {
+    message.success(`已选择 ${selectedFolderFiles.value.length} 个文件`);
+    uploadFolder();
+  }
+};
 
-// 上传错误处理
-const handleUploadError = (err) => {
-  uploadStatus.value = "上传失败"
-  message.error("上传失败")
-}
+// 上传文件夹：将所有文件及其相对路径添加到 FormData 中后上传
+const uploadFolder = async () => {
+  if (selectedFolderFiles.value.length === 0) {
+    message.warning("请先选择一个文件夹");
+    return;
+  }
+  const formData = new FormData();
+  selectedFolderFiles.value.forEach(file => {
+    // 使用 file.webkitRelativePath 保留文件夹结构
+    formData.append('files', file, file.webkitRelativePath);
+  });
+  try {
+    const response = await fetch("http://localhost:8080/api/svs/upload", {
+      method: 'POST',
+      body: formData
+    });
+    if (response.ok) {
+      message.success("文件夹上传成功");
+    } else {
+      message.error("文件夹上传失败");
+    }
+  } catch (error) {
+    console.error("上传错误：", error);
+    message.error("上传过程中出现错误");
+  }
+};
+
 
 // 拉取文件目录列表
 const fetchFileList = async () => {
@@ -229,7 +250,6 @@ const updateViewerDziUrl = (url) => {
     showNavigator: true,
     fullscreen: false
   })
-  // 设置同步事件，如果同步开启
   if (syncEnabled.value) setupSync()
 }
 
@@ -244,48 +264,41 @@ const initViewers = () => {
   })
 }
 
-// 全局同步标志，防止递归同步
+// 设置同步事件：添加 zoom 和 pan 事件处理器，避免递归触发
 let isSyncing = false;
-
 const setupSync = () => {
   viewers.value.forEach((viewer, idx) => {
-    if (viewer) {
-      if (!viewer._syncHandlersBound) {
-        viewer.addHandler('zoom', () => {
-          if (syncEnabled.value && !isSyncing) {
-            isSyncing = true;
-            const zoom = viewer.viewport.getZoom();
-            console.log(`Viewer ${idx} zoom event: zoom=${zoom}`);
-            viewers.value.forEach((v, i) => {
-              if (v !== viewer && v) {
-                v.viewport.zoomTo(zoom);
-              }
-            });
-            isSyncing = false;
-          }
-        });
-        viewer.addHandler('pan', () => {
-          if (syncEnabled.value && !isSyncing) {
-            isSyncing = true;
-            const center = viewer.viewport.getCenter();
-            console.log(`Viewer ${idx} pan event: center=(${center.x.toFixed(3)}, ${center.y.toFixed(3)})`);
-            viewers.value.forEach((v, i) => {
-              if (v !== viewer && v) {
-                v.viewport.panTo(center);
-              }
-            });
-            isSyncing = false;
-          }
-        });
-        // 标记该viewer已绑定同步事件
-        viewer._syncHandlersBound = true;
-      }
+    if (viewer && !viewer._syncHandlersBound) {
+      viewer.addHandler('zoom', () => {
+        if (syncEnabled.value && !isSyncing) {
+          isSyncing = true;
+          const zoom = viewer.viewport.getZoom();
+          console.log(`Viewer ${idx} zoom event: zoom=${zoom}`);
+          viewers.value.forEach((v, i) => {
+            if (v !== viewer && v) {
+              v.viewport.zoomTo(zoom);
+            }
+          });
+          isSyncing = false;
+        }
+      });
+      viewer.addHandler('pan', () => {
+        if (syncEnabled.value && !isSyncing) {
+          isSyncing = true;
+          const center = viewer.viewport.getCenter();
+          console.log(`Viewer ${idx} pan event: center=(${center.x.toFixed(3)}, ${center.y.toFixed(3)})`);
+          viewers.value.forEach((v, i) => {
+            if (v !== viewer && v) {
+              v.viewport.panTo(center);
+            }
+          });
+          isSyncing = false;
+        }
+      });
+      viewer._syncHandlersBound = true;
     }
   });
 };
-
-
-
 
 // 点击 viewer-wrapper 选择展示区域
 const selectViewer = (index) => {
@@ -295,14 +308,13 @@ const selectViewer = (index) => {
 
 // 判断某个 viewer 是否有加载图像
 const hasDzi = (index) => {
-  return viewers.value[index] !== null
-}
+  return viewers.value[index] !== null;
+};
 
-// 页面加载时拉取文件列表和初始化展示区域
 onMounted(() => {
-  fetchFileList()
-  initViewers()
-})
+  fetchFileList();
+  initViewers();
+});
 </script>
 
 <style scoped>
@@ -344,17 +356,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 20px;
-}
-
-.upload-btn {
-  margin-right: 15px;
-}
-
-.upload-status {
-  text-align: center;
-  font-size: 16px;
-  color: #1890ff;
-  margin-top: 10px;
 }
 
 .content-wrapper {
@@ -435,4 +436,53 @@ onMounted(() => {
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
 }
+
+.folder-upload {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.folder-upload-label {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  background-color: #f0faff;
+  padding: 8px 16px;
+  border: 1px solid #1890ff;
+  border-radius: 4px;
+  color: #1890ff;
+  font-weight: 500;
+  flex: 1;
+  text-align: center;
+  max-width: 300px;
+  margin-right: 150px;
+}
+
+.folder-upload-label:hover {
+  background-color: #e6f7ff;
+}
+
+.folder-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.folder-upload-button {
+  pointer-events: none;
+}
+
+.sidebar-header {
+  padding: 10px;
+  text-align: right;
+  border-bottom: 1px solid #e8e8e8;
+}
+
 </style>
