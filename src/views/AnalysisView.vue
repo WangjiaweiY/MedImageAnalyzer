@@ -21,14 +21,13 @@
           </n-button>
         </div>
         <div class="user-info">
-          <!-- 合并后的上传整个文件夹（配准图像） -->
+          <!-- 上传文件夹 -->
           <div class="folder-upload">
             <label class="folder-upload-label">
               <input type="file" webkitdirectory multiple @change="handleFolderAndUpload" class="folder-input" />
               <span class="folder-upload-button">上传</span>
             </label>
           </div>
-
           <n-dropdown :options="userOptions" @select="handleUserAction">
             <n-button text class="admin">
               管理员
@@ -54,16 +53,32 @@
             <n-icon><ReloadOutlined /></n-icon>
           </n-button>
         </div>
-        <n-list class="file-list" hoverable clickable>
+        <n-list class="file-list" hoverable>
           <n-list-item 
             v-for="item in fileList" 
             :key="item.folderName"
-            @click="selectFolder(item)"
             :class="{ 'selected': selectedFolder === item.folderName }"
           >
-            <n-thing
-              :title="item.folderName"
-            />
+            <div class="folder-item">
+              <span @click="toggleFolder(item.folderName)" class="folder-name">
+                {{ item.folderName }}
+              </span>
+              <n-button size="small" @click.stop="toggleFolder(item.folderName)">
+                {{ expandedFolders[item.folderName] ? '收起' : '展开' }}
+              </n-button>
+            </div>
+            <!-- 显示展开后的内容：文件和子文件夹 -->
+            <div v-if="expandedFolders[item.folderName]" class="dzi-file-list">
+              <n-list-item 
+                v-for="subItem in folderDziFiles[item.folderName] || []" 
+                :key="subItem.name"
+                @click="selectDziItem(item.folderName, subItem)"
+                class="dzi-item"
+              >
+                {{ subItem.name }}
+                <span v-if="subItem.directory">(文件夹)</span>
+              </n-list-item>
+            </div>
           </n-list-item>
         </n-list>
       </n-layout-sider>
@@ -101,30 +116,55 @@ import {
   NButtonGroup,
   NDropdown, 
   NIcon, 
-  NUpload, 
   NList, 
   NListItem,
-  NThing,
   NEmpty,
   useMessage
 } from 'naive-ui'
-import { UserOutlined, SettingOutlined, LogoutOutlined } from '@vicons/antd'
+import { UserOutlined, SettingOutlined, LogoutOutlined, ReloadOutlined } from '@vicons/antd'
 import OpenSeadragon from 'openseadragon'
-import { ReloadOutlined } from '@vicons/antd'
-
 
 const router = useRouter()
 const message = useMessage()
 
 // 布局、文件列表、展示相关响应式变量
 const layoutType = ref(1) // 当前布局模式：1,2,4,9
-const fileList = ref([])  // 文件目录列表（用于DZI文件展示）
-const selectedFolder = ref("") // 选中的DZI文件夹
+const fileList = ref([])  // 一级文件夹列表（以日期命名）
+const selectedFolder = ref("") // 当前选中的文件夹
 const selectedViewerIndex = ref(null) // 当前选中的展示框索引（0-indexed）
-const viewers = ref([])  // 保存每个OpenSeadragon实例
+const viewers = ref([])  // 保存每个 OpenSeadragon 实例
 
-// 新增：是否启用同步的开关
-const syncEnabled = ref(true)
+// 新增：管理侧边栏展开状态与子文件列表
+const expandedFolders = ref({})
+const folderDziFiles = ref({})
+
+// 切换文件夹展开状态；若未加载子项则调用接口加载
+const toggleFolder = async (folderName) => {
+  if (expandedFolders.value[folderName]) {
+    expandedFolders.value[folderName] = false;
+  } else {
+    if (!folderDziFiles.value[folderName]) {
+      try {
+        // 直接使用 folderName 拼接，不进行编码
+        const res = await fetch(`http://localhost:8080/api/dzi/list/${folderName}`);
+        const data = await res.json();
+        folderDziFiles.value[folderName] = data;
+      } catch (error) {
+        console.error("获取文件夹内容失败:", error);
+        message.error("获取文件列表失败");
+      }
+    }
+    expandedFolders.value[folderName] = true;
+  }
+}
+
+// 选择子项（第二级目录或文件）时，直接调用 getDziFile 接口加载资源
+const selectDziItem = (parentFolder, item) => {
+  // 直接构造 URL，注意不再递归展开目录，而是直接加载资源
+  const url = `http://localhost:8080/api/dzi/processed/${parentFolder}/${item.name}`;
+  updateViewerDziUrl(url);
+}
+
 
 // 用户下拉菜单选项
 const userOptions = [
@@ -157,6 +197,7 @@ const changeLayout = (num) => {
 }
 
 // 切换同步功能
+const syncEnabled = ref(true)
 const toggleSync = () => {
   syncEnabled.value = !syncEnabled.value
   message.info(`图像同步已${syncEnabled.value ? '开启' : '关闭'}`)
@@ -165,61 +206,49 @@ const toggleSync = () => {
   }
 }
 
-// 保存选择的文件夹内所有文件
-const selectedFolderFiles = ref([]);
-
-// 处理文件夹选择并立即上传
+// 文件夹上传处理
+const selectedFolderFiles = ref([])
 const handleFolderAndUpload = (event) => {
-  selectedFolderFiles.value = Array.from(event.target.files);
+  selectedFolderFiles.value = Array.from(event.target.files)
   if (selectedFolderFiles.value.length > 0) {
-    message.success(`已选择 ${selectedFolderFiles.value.length} 个文件`);
-    uploadFolder();
+    message.success(`已选择 ${selectedFolderFiles.value.length} 个文件`)
+    uploadFolder()
   }
-};
-
-// 上传文件夹：将所有文件及其相对路径添加到 FormData 中后上传
+}
 const uploadFolder = async () => {
   if (selectedFolderFiles.value.length === 0) {
-    message.warning("请先选择一个文件夹");
-    return;
+    message.warning("请先选择一个文件夹")
+    return
   }
-  const formData = new FormData();
+  const formData = new FormData()
   selectedFolderFiles.value.forEach(file => {
-    // 使用 file.webkitRelativePath 保留文件夹结构
-    formData.append('files', file, file.webkitRelativePath);
-  });
+    formData.append('files', file, file.webkitRelativePath)
+  })
   try {
     const response = await fetch("http://localhost:8080/api/svs/upload", {
       method: 'POST',
       body: formData
-    });
+    })
     if (response.ok) {
-      message.success("文件夹上传成功");
+      message.success("文件夹上传成功")
     } else {
-      message.error("文件夹上传失败");
+      message.error("文件夹上传失败")
     }
   } catch (error) {
-    console.error("上传错误：", error);
-    message.error("上传过程中出现错误");
+    console.error("上传错误：", error)
+    message.error("上传过程中出现错误")
   }
-};
+}
 
-
-// 拉取文件目录列表
+// 拉取一级文件夹列表（以日期命名）
 const fetchFileList = async () => {
   try {
     const res = await fetch('http://localhost:8080/api/dzi/list')
     fileList.value = await res.json()
   } catch (error) {
     console.error('获取文件列表失败:', error)
+    message.error("获取文件列表失败")
   }
-}
-
-// 用户点击某个目录项，选择上传后生成的文件夹
-const selectFolder = (item) => {
-  selectedFolder.value = item.folderName
-  // 构造 DZI描述文件 URL：假设描述文件名称固定为 test.xml
-  updateViewerDziUrl(`http://localhost:8080/processed/${item.folderName}/`)
 }
 
 // 更新当前选中 viewer 的 DZI URL
@@ -264,57 +293,56 @@ const initViewers = () => {
   })
 }
 
-// 设置同步事件：添加 zoom 和 pan 事件处理器，避免递归触发
-let isSyncing = false;
+// 设置同步事件：添加 zoom 和 pan 事件处理器
+let isSyncing = false
 const setupSync = () => {
   viewers.value.forEach((viewer, idx) => {
     if (viewer && !viewer._syncHandlersBound) {
       viewer.addHandler('zoom', () => {
         if (syncEnabled.value && !isSyncing) {
-          isSyncing = true;
-          const zoom = viewer.viewport.getZoom();
-          console.log(`Viewer ${idx} zoom event: zoom=${zoom}`);
+          isSyncing = true
+          const zoom = viewer.viewport.getZoom()
+          console.log(`Viewer ${idx} zoom event: zoom=${zoom}`)
           viewers.value.forEach((v, i) => {
             if (v !== viewer && v) {
-              v.viewport.zoomTo(zoom);
+              v.viewport.zoomTo(zoom)
             }
-          });
-          isSyncing = false;
+          })
+          isSyncing = false
         }
-      });
+      })
       viewer.addHandler('pan', () => {
         if (syncEnabled.value && !isSyncing) {
-          isSyncing = true;
-          const center = viewer.viewport.getCenter();
-          console.log(`Viewer ${idx} pan event: center=(${center.x.toFixed(3)}, ${center.y.toFixed(3)})`);
+          isSyncing = true
+          const center = viewer.viewport.getCenter()
+          console.log(`Viewer ${idx} pan event: center=(${center.x.toFixed(3)}, ${center.y.toFixed(3)})`)
           viewers.value.forEach((v, i) => {
             if (v !== viewer && v) {
-              v.viewport.panTo(center);
+              v.viewport.panTo(center)
             }
-          });
-          isSyncing = false;
+          })
+          isSyncing = false
         }
-      });
-      viewer._syncHandlersBound = true;
+      })
+      viewer._syncHandlersBound = true
     }
-  });
-};
+  })
+}
 
 // 点击 viewer-wrapper 选择展示区域
 const selectViewer = (index) => {
   selectedViewerIndex.value = index
-  // message.info(`已选择展示区域 ${index + 1}`)
 }
 
-// 判断某个 viewer 是否有加载图像
+// 判断某个 viewer 是否已加载图像
 const hasDzi = (index) => {
-  return viewers.value[index] !== null;
-};
+  return viewers.value[index] !== null
+}
 
 onMounted(() => {
-  fetchFileList();
-  initViewers();
-});
+  fetchFileList()
+  initViewers()
+})
 </script>
 
 <style scoped>
@@ -369,8 +397,35 @@ onMounted(() => {
   box-shadow: 2px 0 8px rgba(0,0,0,0.05);
 }
 
+.sidebar-header {
+  padding: 10px;
+  text-align: right;
+  border-bottom: 1px solid #e8e8e8;
+}
+
 .file-list {
   padding: 12px;
+}
+
+.folder-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.folder-name {
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.dzi-file-list {
+  margin-top: 8px;
+  padding-left: 16px;
+}
+
+.dzi-item {
+  cursor: pointer;
+  padding: 4px 0;
 }
 
 .selected {
@@ -478,11 +533,4 @@ onMounted(() => {
 .folder-upload-button {
   pointer-events: none;
 }
-
-.sidebar-header {
-  padding: 10px;
-  text-align: right;
-  border-bottom: 1px solid #e8e8e8;
-}
-
 </style>
