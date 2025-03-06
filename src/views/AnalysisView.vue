@@ -19,6 +19,10 @@
           <n-button @click="toggleSync" :type="syncEnabled ? 'primary' : 'default'" class="sync-btn">
             同步：{{ syncEnabled ? '开启' : '关闭' }}
           </n-button>
+          <!-- 配准按钮 -->
+          <n-button @click="openRegistrationModal" type="primary" class="registration-btn">
+            配准
+          </n-button>
         </div>
         <div class="user-info">
           <!-- 上传文件夹 -->
@@ -100,6 +104,32 @@
         </div>
       </n-layout-content>
     </n-layout>
+
+    <!-- 自定义的配准弹出框 -->
+    <div v-if="registrationModalVisible" class="custom-modal-overlay">
+      <div class="custom-modal-box">
+        <div class="modal-header">
+          <span class="modal-title">选择文件夹进行配准</span>
+          <button class="modal-close-btn" @click="registrationModalVisible = false">×</button>
+        </div>
+        <div class="modal-body">
+          <ul class="folder-list">
+            <li 
+              v-for="folder in registrationFolderList" 
+              :key="folder.folderName"
+              :class="{ selected: selectedRegistrationFolder === folder.folderName }"
+              @click="selectedRegistrationFolder = folder.folderName"
+            >
+              {{ folder.folderName }}
+            </li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn primary" @click="startRegistration" :disabled="!selectedRegistrationFolder">配准</button>
+          <button class="modal-btn" @click="registrationModalVisible = false">关闭</button>
+        </div>
+      </div>
+    </div>
   </n-layout>
 </template>
 
@@ -120,31 +150,34 @@ import {
   NEmpty,
   useMessage
 } from 'naive-ui'
-import { UserOutlined, SettingOutlined, LogoutOutlined, ReloadOutlined, DownOutlined, UpOutlined} from '@vicons/antd'
+import { UserOutlined, SettingOutlined, LogoutOutlined, ReloadOutlined, DownOutlined, UpOutlined } from '@vicons/antd'
 import OpenSeadragon from 'openseadragon'
 
 const router = useRouter()
 const message = useMessage()
 
-// 布局、文件列表、展示相关响应式变量
-const layoutType = ref(1) // 当前布局模式：1,2,4,9
-const fileList = ref([])  // 一级文件夹列表（以日期命名）
-const selectedFolder = ref("") // 当前选中的文件夹
-const selectedViewerIndex = ref(null) // 当前选中的展示框索引（0-indexed）
-const viewers = ref([])  // 保存每个 OpenSeadragon 实例
+// 布局、文件列表及展示相关变量
+const layoutType = ref(1)
+const fileList = ref([])
+const selectedFolder = ref("")
+const selectedViewerIndex = ref(null)
+const viewers = ref([])
 
-// 新增：管理侧边栏展开状态与子文件列表
+// 自定义配准弹出框相关变量
+const registrationModalVisible = ref(false)
+const registrationFolderList = ref([])  // 接口返回的数据数组，每项为 { folderName, fileNames }
+const selectedRegistrationFolder = ref(null)
+
+// 管理侧边栏展开状态与子文件列表
 const expandedFolders = ref({})
 const folderDziFiles = ref({})
 
-// 切换文件夹展开状态；若未加载子项则调用接口加载
 const toggleFolder = async (folderName) => {
   if (expandedFolders.value[folderName]) {
     expandedFolders.value[folderName] = false;
   } else {
     if (!folderDziFiles.value[folderName]) {
       try {
-        // 直接使用 folderName 拼接，不进行编码
         const res = await fetch(`http://localhost:8080/api/dzi/list/${folderName}`);
         const data = await res.json();
         folderDziFiles.value[folderName] = data;
@@ -338,6 +371,43 @@ const hasDzi = (index) => {
   return viewers.value[index] !== null
 }
 
+// 打开配准弹出框并调用接口拉取文件夹列表
+const openRegistrationModal = async () => {
+  registrationModalVisible.value = true
+  selectedRegistrationFolder.value = null
+  try {
+    const res = await fetch("http://localhost:8080/api/svs/list")
+    const result = await res.json()
+    registrationFolderList.value = Array.isArray(result) ? result : [result]
+  } catch (error) {
+    console.error("获取配准文件夹列表失败:", error)
+    message.error("获取文件夹列表失败")
+    registrationFolderList.value = []
+  }
+}
+
+// 开始配准，调用后端接口启动配准流程
+const startRegistration = async () => {
+  if (!selectedRegistrationFolder.value) {
+    message.warning("请选择一个文件夹")
+    return
+  }
+  try {
+    const res = await fetch(`http://localhost:8080/api/svs/register/${selectedRegistrationFolder.value}`, {
+      method: 'POST'
+    })
+    if (res.ok) {
+      message.success("图像配准开始")
+      registrationModalVisible.value = false
+    } else {
+      message.error("图像配准失败")
+    }
+  } catch (error) {
+    console.error("配准错误：", error)
+    message.error("图像配准过程中出现错误")
+  }
+}
+
 onMounted(() => {
   fetchFileList()
   initViewers()
@@ -345,6 +415,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 主体布局 */
 .layout {
   height: 100vh;
   display: flex;
@@ -373,6 +444,9 @@ onMounted(() => {
 .controls {
   flex: 1;
   margin: 0 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .sync-btn {
@@ -531,5 +605,89 @@ onMounted(() => {
 
 .folder-upload-button {
   pointer-events: none;
+}
+
+/* 自定义配准弹出框样式 */
+.custom-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.custom-modal-box {
+  background: #fff;
+  width: 50vw;
+  height: 50vh;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #1890ff;
+  color: white;
+}
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+}
+.modal-body {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+.folder-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.folder-list li {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+}
+.folder-list li:hover,
+.folder-list li.selected {
+  background-color: #e6f7ff;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  gap: 10px;
+  border-top: 1px solid #eee;
+}
+.modal-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #ddd;
+  font-size: 14px;
+}
+.modal-btn.primary {
+  background: #1890ff;
+  color: white;
+}
+.modal-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
