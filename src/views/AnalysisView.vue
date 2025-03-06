@@ -64,7 +64,7 @@
                 {{ item.folderName }}
               </span>
               <n-button size="small" @click.stop="toggleFolder(item.folderName)">
-                {{ expandedFolders[item.folderName] ? '收起' : '展开' }}
+                <n-icon :component="expandedFolders[item.folderName] ? UpOutlined : DownOutlined" />
               </n-button>
             </div>
             <!-- 显示展开后的内容：文件和子文件夹 -->
@@ -76,7 +76,6 @@
                 class="dzi-item"
               >
                 {{ subItem.name }}
-                <span v-if="subItem.directory">(文件夹)</span>
               </n-list-item>
             </div>
           </n-list-item>
@@ -121,7 +120,7 @@ import {
   NEmpty,
   useMessage
 } from 'naive-ui'
-import { UserOutlined, SettingOutlined, LogoutOutlined, ReloadOutlined } from '@vicons/antd'
+import { UserOutlined, SettingOutlined, LogoutOutlined, ReloadOutlined, DownOutlined, UpOutlined} from '@vicons/antd'
 import OpenSeadragon from 'openseadragon'
 
 const router = useRouter()
