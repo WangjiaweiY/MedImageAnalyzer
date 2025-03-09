@@ -24,6 +24,22 @@
             配准
           </n-button>
         </div>
+
+        <!-- 状态栏：显示上传或配准状态，只有 visible 为 true 时显示 -->
+        <div class="status-bar" v-if="statusBar.visible">
+          <span>
+            {{ statusBar.folder }} 
+            {{
+              statusBar.operation === 'upload'
+                ? (statusBar.finished ? '上传完毕' : '正在上传中...')
+                : (statusBar.finished ? '配准完毕' : '正在配准中...')
+            }}
+            ，已用时：{{ statusBar.elapsed }} 秒
+          </span>
+          <!-- 只有在 finished（成功或失败）后才显示关闭按钮 -->
+          <button v-if="statusBar.finished" @click="closeStatusBar" class="close-status-btn">×</button>
+        </div>
+
         <div class="user-info">
           <!-- 上传文件夹 -->
           <div class="folder-upload">
@@ -105,7 +121,6 @@
       </n-layout-content>
     </n-layout>
 
-    <!-- 自定义的配准弹出框 -->
     <div v-if="registrationModalVisible" class="custom-modal-overlay">
       <div class="custom-modal-box">
         <div class="modal-header">
@@ -192,11 +207,9 @@ const toggleFolder = async (folderName) => {
 
 // 选择子项（第二级目录或文件）时，直接调用 getDziFile 接口加载资源
 const selectDziItem = (parentFolder, item) => {
-  // 直接构造 URL，注意不再递归展开目录，而是直接加载资源
   const url = `http://localhost:8080/api/dzi/processed/${parentFolder}/${item.name}/`;
   updateViewerDziUrl(url);
 }
-
 
 // 用户下拉菜单选项
 const userOptions = [
@@ -238,6 +251,39 @@ const toggleSync = () => {
   }
 }
 
+// 状态栏相关状态，由上传和配准共用
+const statusBar = ref({
+  visible: false,
+  folder: "",
+  operation: "", // "upload" 或 "register"
+  message: "",
+  startTime: 0,
+  elapsed: 0,
+  finished: false,
+  error: false
+})
+let statusTimer = null
+
+const startStatusTimer = () => {
+  statusTimer = setInterval(() => {
+    statusBar.value.elapsed = Math.floor((Date.now() - statusBar.value.startTime) / 1000)
+  }, 1000)
+}
+
+const stopStatusTimer = () => {
+  if (statusTimer) {
+    clearInterval(statusTimer)
+    statusTimer = null
+  }
+}
+
+const closeStatusBar = () => {
+  statusBar.value.visible = false
+  statusBar.value.finished = false
+  statusBar.value.error = false
+  statusBar.value.elapsed = 0
+}
+
 // 文件夹上传处理
 const selectedFolderFiles = ref([])
 const handleFolderAndUpload = (event) => {
@@ -252,6 +298,25 @@ const uploadFolder = async () => {
     message.warning("请先选择一个文件夹")
     return
   }
+  // 从第一个文件中提取文件夹名称
+  let folderName = ""
+  const firstFilePath = selectedFolderFiles.value[0].webkitRelativePath
+  if (firstFilePath && firstFilePath.indexOf("/") !== -1) {
+    folderName = firstFilePath.substring(0, firstFilePath.indexOf("/"))
+  }
+  // 初始化状态栏（上传）
+  statusBar.value = {
+    visible: true,
+    folder: folderName,
+    operation: "upload",
+    message: "正在上传中...",
+    startTime: Date.now(),
+    elapsed: 0,
+    finished: false,
+    error: false
+  }
+  startStatusTimer()
+  
   const formData = new FormData()
   selectedFolderFiles.value.forEach(file => {
     formData.append('files', file, file.webkitRelativePath)
@@ -262,12 +327,23 @@ const uploadFolder = async () => {
       body: formData
     })
     if (response.ok) {
+      statusBar.value.message = "上传完毕"
+      statusBar.value.finished = true
+      stopStatusTimer()
       message.success("文件夹上传成功")
     } else {
+      statusBar.value.message = "上传失败"
+      statusBar.value.finished = true
+      statusBar.value.error = true
+      stopStatusTimer()
       message.error("文件夹上传失败")
     }
   } catch (error) {
     console.error("上传错误：", error)
+    statusBar.value.message = "上传失败"
+    statusBar.value.finished = true
+    statusBar.value.error = true
+    stopStatusTimer()
     message.error("上传过程中出现错误")
   }
 }
@@ -335,7 +411,7 @@ const setupSync = () => {
           isSyncing = true
           const zoom = viewer.viewport.getZoom()
           console.log(`Viewer ${idx} zoom event: zoom=${zoom}`)
-          viewers.value.forEach((v, i) => {
+          viewers.value.forEach((v) => {
             if (v !== viewer && v) {
               v.viewport.zoomTo(zoom)
             }
@@ -348,7 +424,7 @@ const setupSync = () => {
           isSyncing = true
           const center = viewer.viewport.getCenter()
           console.log(`Viewer ${idx} pan event: center=(${center.x.toFixed(3)}, ${center.y.toFixed(3)})`)
-          viewers.value.forEach((v, i) => {
+          viewers.value.forEach((v) => {
             if (v !== viewer && v) {
               v.viewport.panTo(center)
             }
@@ -392,18 +468,42 @@ const startRegistration = async () => {
     message.warning("请选择一个文件夹")
     return
   }
+  // 初始化状态栏（配准）
+  statusBar.value = {
+    visible: true,
+    folder: selectedRegistrationFolder.value,
+    operation: "register",
+    message: "正在配准中...",
+    startTime: Date.now(),
+    elapsed: 0,
+    finished: false,
+    error: false
+  }
+  startStatusTimer()
+
   try {
     const res = await fetch(`http://localhost:8080/api/svs/register/${selectedRegistrationFolder.value}`, {
       method: 'POST'
     })
     if (res.ok) {
-      message.success("图像配准开始")
+      statusBar.value.message = "配准完毕"
+      statusBar.value.finished = true
+      stopStatusTimer()
+      message.success("图像配准成功")
       registrationModalVisible.value = false
     } else {
+      statusBar.value.message = "配准失败"
+      statusBar.value.finished = true
+      statusBar.value.error = true
+      stopStatusTimer()
       message.error("图像配准失败")
     }
   } catch (error) {
     console.error("配准错误：", error)
+    statusBar.value.message = "配准失败"
+    statusBar.value.finished = true
+    statusBar.value.error = true
+    stopStatusTimer()
     message.error("图像配准过程中出现错误")
   }
 }
@@ -415,7 +515,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 主体布局 */
 .layout {
   height: 100vh;
   display: flex;
@@ -457,6 +556,26 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 20px;
+}
+
+.status-bar {
+  background: #fff;
+  color: #333;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-right: 280px;
+}
+
+.close-status-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
 }
 
 .content-wrapper {
@@ -544,7 +663,6 @@ onMounted(() => {
   height: 100%;
 }
 
-/* 布局样式 */
 .layout-1 {
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
@@ -607,7 +725,6 @@ onMounted(() => {
   pointer-events: none;
 }
 
-/* 自定义配准弹出框样式 */
 .custom-modal-overlay {
   position: fixed;
   top: 0;
