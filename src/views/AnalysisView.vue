@@ -83,19 +83,49 @@
               <span @click="toggleFolder(item.folderName)" class="folder-name">
                 {{ item.folderName }}
               </span>
-              <n-button size="small" @click.stop="toggleFolder(item.folderName)">
-                <n-icon :component="expandedFolders[item.folderName] ? UpOutlined : DownOutlined" />
-              </n-button>
+              <div class="toggle-actions">
+                <n-button 
+                  size="small" 
+                  class="toggle-folder-btn" 
+                  @click.stop="toggleFolder(item.folderName)"
+                >
+                  <n-icon :component="expandedFolders[item.folderName] ? UpOutlined : DownOutlined" />
+                </n-button>
+                <div class="action-menu-container">
+                  <button class="action-menu-btn" @click.stop="toggleActionMenu(item.folderName)">
+                    <n-icon :component="EllipsisOutlined" />
+                  </button>
+                  <div v-if="actionMenuVisible[item.folderName]" class="action-menu-dropdown">
+                    <ul>
+                      <li @click="deleteFolder(item.folderName)">删除</li>
+                      <!-- 预留其它选项 -->
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </div>
-            <!-- 显示展开后的内容：文件和子文件夹 -->
+            <!-- 二级菜单：显示展开后的文件和子文件夹 -->
             <div v-if="expandedFolders[item.folderName]" class="dzi-file-list">
               <n-list-item 
                 v-for="subItem in folderDziFiles[item.folderName] || []" 
                 :key="subItem.name"
-                @click="selectDziItem(item.folderName, subItem)"
-                class="dzi-item"
+                class="dzi-item file-item"
               >
-                {{ subItem.name }}
+                <span class="file-name" @click="selectDziItem(item.folderName, subItem)">
+                  {{ subItem.name }}
+                </span>
+                <!-- 文件操作菜单按钮 -->
+                <div class="file-action-menu-container">
+                  <button class="file-action-menu-btn" @click.stop="toggleFileActionMenu(item.folderName, subItem.name)">
+                    <n-icon :component="EllipsisOutlined" />
+                  </button>
+                  <div v-if="fileActionMenuVisible[item.folderName] && fileActionMenuVisible[item.folderName][subItem.name]" class="file-action-menu-dropdown">
+                    <ul>
+                      <li @click="deleteFile(item.folderName, subItem.name)">删除</li>
+                      <!-- 预留其它选项 -->
+                    </ul>
+                  </div>
+                </div>
               </n-list-item>
             </div>
           </n-list-item>
@@ -165,7 +195,7 @@ import {
   NEmpty,
   useMessage
 } from 'naive-ui'
-import { UserOutlined, SettingOutlined, LogoutOutlined, ReloadOutlined, DownOutlined, UpOutlined } from '@vicons/antd'
+import { UserOutlined, SettingOutlined, LogoutOutlined, ReloadOutlined, DownOutlined, UpOutlined, EllipsisOutlined  } from '@vicons/antd'
 import OpenSeadragon from 'openseadragon'
 
 const router = useRouter()
@@ -186,6 +216,69 @@ const selectedRegistrationFolder = ref(null)
 // 管理侧边栏展开状态与子文件列表
 const expandedFolders = ref({})
 const folderDziFiles = ref({})
+
+// 新增用于记录每个文件夹操作菜单显示状态的对象
+const actionMenuVisible = ref({})
+
+// 切换操作菜单的显示状态
+const toggleActionMenu = (folderName) => {
+  actionMenuVisible.value[folderName] = !actionMenuVisible.value[folderName]
+}
+
+const deleteFolder = async (folderName) => {
+  if (!confirm(`确定删除文件夹 "${folderName}" 吗？删除后将不可恢复`)) return;
+  try {
+    const res = await fetch(`http://localhost:8080/api/dzi/deleteFolder/${folderName}`, {
+      method: 'DELETE'
+    });
+    if (res.ok) {
+      message.success(`删除文件夹 "${folderName}" 成功`);
+      // 删除成功后从一级菜单中移除该文件夹
+      fileList.value = fileList.value.filter(item => item.folderName !== folderName);
+    } else {
+      message.error(`删除文件夹 "${folderName}" 失败`);
+    }
+  } catch (error) {
+    console.error("删除文件夹错误", error);
+    message.error("删除文件夹过程中出现错误");
+  }
+}
+
+const fileActionMenuVisible = ref({})
+
+// 切换文件项操作菜单显示状态
+const toggleFileActionMenu = (folderName, fileName) => {
+  if (!fileActionMenuVisible.value[folderName]) {
+    fileActionMenuVisible.value[folderName] = {}
+  }
+  fileActionMenuVisible.value[folderName][fileName] = !fileActionMenuVisible.value[folderName][fileName]
+}
+
+// 删除文件的逻辑
+const deleteFile = async (folderName, fileName) => {
+  if (!confirm(`确定删除文件 "${fileName}" 吗？`)) return
+  try {
+    const res = await fetch(`http://localhost:8080/api/dzi/delete/${folderName}/${fileName}`, {
+      method: 'DELETE'
+    })
+    if (res.ok) {
+      message.success(`删除文件 "${fileName}" 成功`)
+      // 删除成功后从当前文件列表中移除该文件
+      if (folderDziFiles.value[folderName]) {
+        folderDziFiles.value[folderName] = folderDziFiles.value[folderName].filter(item => item.name !== fileName)
+      }
+    } else {
+      message.error(`删除文件失败`)
+    }
+  } catch (error) {
+    console.error("删除文件错误", error)
+    message.error("删除过程中出现错误")
+  } finally {
+    if (fileActionMenuVisible.value[folderName]) {
+      fileActionMenuVisible.value[folderName][fileName] = false
+    }
+  }
+}
 
 const toggleFolder = async (folderName) => {
   if (expandedFolders.value[folderName]) {
@@ -806,5 +899,117 @@ onMounted(() => {
 .modal-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.toggle-actions {
+  position: relative;
+  display: inline-block;
+  margin-left: 8px;
+}
+
+.action-menu-container {
+  position: absolute;
+  right: calc(100% + 15px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.action-menu-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  z-index: 9999;
+  min-width: 80px;
+}
+
+.action-menu-dropdown ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.action-menu-dropdown li {
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.action-menu-dropdown li:hover {
+  background-color: #f5f5f5;
+}
+
+.file-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.file-name {
+  flex: 1;
+  padding-right: 30px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-action-menu-container {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.file-action-menu-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-action-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  z-index: 9999;
+  min-width: 80px;
+}
+
+.file-action-menu-dropdown ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.file-action-menu-dropdown li {
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.file-action-menu-dropdown li:hover {
+  background-color: #f5f5f5;
 }
 </style>
