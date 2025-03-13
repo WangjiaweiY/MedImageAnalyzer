@@ -912,6 +912,7 @@ onMounted(() => {
   right: calc(100% + 15px);
   top: 50%;
   transform: translateY(-50%);
+  z-index: 999;
 }
 
 .action-menu-btn {
@@ -934,7 +935,7 @@ onMounted(() => {
   border: 1px solid #ddd;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  z-index: 9999;
+  z-index: 10;
   min-width: 80px;
 }
 
@@ -972,6 +973,7 @@ onMounted(() => {
   right: 0;
   top: 50%;
   transform: translateY(-50%);
+  z-index: 999;
 }
 
 .file-action-menu-btn {
@@ -994,7 +996,7 @@ onMounted(() => {
   border: 1px solid #ddd;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  z-index: 9999;
+  z-index: 10;
   min-width: 80px;
 }
 
