@@ -122,6 +122,7 @@
                   <div v-if="fileActionMenuVisible[item.folderName] && fileActionMenuVisible[item.folderName][subItem.name]" class="file-action-menu-dropdown">
                     <ul>
                       <li @click="deleteFile(item.folderName, subItem.name)">删除</li>
+                      <li @click="IHCanalysis(item.folderName, subItem.name)">免疫组化分析</li>
                       <!-- 预留其它选项 -->
                     </ul>
                   </div>
@@ -139,6 +140,9 @@
             v-for="(v, index) in layoutType" 
             :key="index"
             class="viewer-wrapper"
+            @mouseenter="handleMouseEnter(index, $event)"
+            @mousemove="handleMouseMove(index, $event)"
+            @mouseleave="handleMouseLeave(index)"
             @click="selectViewer(index)"
             :class="{ 'selected-viewer': selectedViewerIndex === index }"
           >
@@ -176,6 +180,15 @@
       </div>
     </div>
   </n-layout>
+
+  <!-- 全局 tooltip，用于显示当前展示框加载的文件名称 -->
+  <div
+    v-if="tooltip.visible"
+    class="file-name-tooltip"
+    :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px' }"
+  >
+    {{ tooltip.text }}
+  </div>
 </template>
 
 <script setup>
@@ -207,6 +220,17 @@ const fileList = ref([])
 const selectedFolder = ref("")
 const selectedViewerIndex = ref(null)
 const viewers = ref([])
+
+// 用于记录各展示框加载的文件名称
+const viewerFileNames = ref([])
+
+// 全局 tooltip 数据
+const tooltip = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  text: ''
+})
 
 // 自定义配准弹出框相关变量
 const registrationModalVisible = ref(false)
@@ -280,6 +304,27 @@ const deleteFile = async (folderName, fileName) => {
   }
 }
 
+// 免疫组化分析
+const IHCanalysis = async (folderName, fileName) => {
+  console.log(`开始对文件夹 ${folderName} 中的文件 ${fileName} 进行免疫组化分析`);
+  const url = `/api/ihc/analyze?folderName=${encodeURIComponent(folderName)}&fileName=${encodeURIComponent(fileName)}`;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error(`请求失败，状态码：${response.status}`);
+    }
+    const result = await response.json();
+    console.log('分析结果：', result);
+    return result;
+  } catch (error) {
+    console.error('分析过程中发生错误：', error);
+    throw error;
+  }
+};
+
+
 const toggleFolder = async (folderName) => {
   if (expandedFolders.value[folderName]) {
     expandedFolders.value[folderName] = false;
@@ -298,10 +343,10 @@ const toggleFolder = async (folderName) => {
   }
 }
 
-// 选择子项（第二级目录或文件）时，直接调用 getDziFile 接口加载资源
+// 选择子项（第二级目录或文件）时，调用 getDziFile 接口加载资源，并记录文件名称
 const selectDziItem = (parentFolder, item) => {
   const url = `http://localhost:8080/api/dzi/processed/${parentFolder}/${item.name}/`;
-  updateViewerDziUrl(url);
+  updateViewerDziUrl(url, item.name);
 }
 
 // 用户下拉菜单选项
@@ -331,6 +376,7 @@ const changeLayout = (num) => {
   selectedViewerIndex.value = null
   viewers.value.forEach(v => v && v.destroy())
   viewers.value = []
+  viewerFileNames.value = []
   if (selectedFolder.value) initViewers()
 }
 
@@ -452,8 +498,8 @@ const fetchFileList = async () => {
   }
 }
 
-// 更新当前选中 viewer 的 DZI URL
-const updateViewerDziUrl = (url) => {
+// 更新当前选中 viewer 的 DZI URL，同时记录文件名称
+const updateViewerDziUrl = (url, fileName) => {
   if (selectedViewerIndex.value === null) {
     message.warning('请先点击一个展示框进行选择')
     return
@@ -461,6 +507,7 @@ const updateViewerDziUrl = (url) => {
   if (viewers.value[selectedViewerIndex.value]) {
     viewers.value[selectedViewerIndex.value].destroy()
   }
+  viewerFileNames.value[selectedViewerIndex.value] = fileName
   viewers.value[selectedViewerIndex.value] = OpenSeadragon({
     id: `osdViewer-${selectedViewerIndex.value}`,
     prefixUrl: 'http://localhost:8080/openseadragon-bin/images/',
@@ -528,6 +575,23 @@ const setupSync = () => {
       viewer._syncHandlersBound = true
     }
   })
+}
+
+// 鼠标事件处理函数，用于 tooltip 显示文件名称
+const handleMouseEnter = (index, event) => {
+  if (viewerFileNames.value[index]) {
+    tooltip.value.text = viewerFileNames.value[index]
+    tooltip.value.visible = true
+  }
+}
+
+const handleMouseMove = (index, event) => {
+  tooltip.value.x = event.clientX + 10
+  tooltip.value.y = event.clientY + 10
+}
+
+const handleMouseLeave = (index) => {
+  tooltip.value.visible = false
 }
 
 // 点击 viewer-wrapper 选择展示区域
@@ -1013,5 +1077,16 @@ onMounted(() => {
 
 .file-action-menu-dropdown li:hover {
   background-color: #f5f5f5;
+}
+
+.file-name-tooltip {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1000;
 }
 </style>
