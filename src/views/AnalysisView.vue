@@ -209,6 +209,7 @@
                 <th>图片名称</th>
                 <th>正染区域</th>
                 <th>总像素</th>
+                <th>正染比例</th>
                 <th>分析时间</th>
               </tr>
             </thead>
@@ -219,6 +220,7 @@
                 <td>{{ item.imageName }}</td>
                 <td>{{ item.positiveArea }}</td>
                 <td>{{ item.totalArea }}</td>
+                <td>{{ item.positiveRatio }}</td>
                 <td>{{ item.analysisDate }}</td>
               </tr>
             </tbody>
@@ -243,6 +245,10 @@
               <tr>
                 <td>总像素</td>
                 <td>{{ resultModalContent.totalArea }}</td>
+              </tr>
+              <tr>
+                <td>正染比例</td>
+                <td>{{ resultModalContent.positiveRatio }}</td>
               </tr>
               <tr>
                 <td>分析时间</td>
