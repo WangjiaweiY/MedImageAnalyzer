@@ -1079,6 +1079,12 @@ onMounted(() => {
   background-color: #f5f5f5;
 }
 
+.action-menu-dropdown li,
+.file-action-menu-dropdown li {
+  white-space: nowrap;
+  padding: 6px 12px;
+}
+
 .file-name-tooltip {
   position: fixed;
   background: rgba(0, 0, 0, 0.7);
