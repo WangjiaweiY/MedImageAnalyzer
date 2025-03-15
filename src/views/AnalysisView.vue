@@ -98,6 +98,7 @@
                   <div v-if="actionMenuVisible[item.folderName]" class="action-menu-dropdown">
                     <ul>
                       <li @click="deleteFolder(item.folderName)">删除</li>
+                      <li @click="resultFolderIHC(item.folderName)">查询分析结果</li>
                       <!-- 预留其它选项 -->
                     </ul>
                   </div>
@@ -123,6 +124,7 @@
                     <ul>
                       <li @click="deleteFile(item.folderName, subItem.name)">删除</li>
                       <li @click="IHCanalysis(item.folderName, subItem.name)">免疫组化分析</li>
+                      <li @click="resultFileIHC(item.folderName, subItem.name)">查询分析结果</li>
                       <!-- 预留其它选项 -->
                     </ul>
                   </div>
@@ -189,6 +191,74 @@
   >
     {{ tooltip.text }}
   </div>
+  <!-- 结果弹窗 -->
+  <div v-if="resultModalVisible" class="result-modal-overlay">
+    <div class="result-modal-box">
+      <div class="result-modal-header">
+        <span>{{ resultModalTitle }}</span>
+        <button class="result-modal-close-btn" @click="resultModalVisible = false">×</button>
+      </div>
+      <div class="result-modal-body">
+        <!-- 如果结果是数组，则以表格形式展示 -->
+        <div v-if="Array.isArray(resultModalContent)">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>文件夹</th>
+                <th>图片名称</th>
+                <th>正染区域</th>
+                <th>总像素</th>
+                <th>分析时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, index) in resultModalContent" :key="index">
+                <td>{{ item.id }}</td>
+                <td>{{ item.foldername }}</td>
+                <td>{{ item.imageName }}</td>
+                <td>{{ item.positiveArea }}</td>
+                <td>{{ item.totalArea }}</td>
+                <td>{{ item.analysisDate }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- 如果结果是对象，则展示单个结果 -->
+        <div v-else-if="typeof resultModalContent === 'object' && resultModalContent !== null">
+          <table>
+            <tbody>
+              <tr>
+                <td>ID</td>
+                <td>{{ resultModalContent.id }}</td>
+              </tr>
+              <tr>
+                <td>图片名称</td>
+                <td>{{ resultModalContent.imageName }}</td>
+              </tr>
+              <tr>
+                <td>正染区域</td>
+                <td>{{ resultModalContent.positiveArea }}</td>
+              </tr>
+              <tr>
+                <td>总像素</td>
+                <td>{{ resultModalContent.totalArea }}</td>
+              </tr>
+              <tr>
+                <td>分析时间</td>
+                <td>{{ resultModalContent.analysisDate }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- 否则直接展示文本信息 -->
+        <div v-else>
+          <p>{{ resultModalContent }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </template>
 
 <script setup>
@@ -665,6 +735,61 @@ const startRegistration = async () => {
   }
 }
 
+// 新增用于结果弹窗的状态
+const resultModalVisible = ref(false)
+const resultModalTitle = ref('')
+const resultModalContent = ref(null)
+
+// 查询指定文件夹下所有图片的免疫组化结果
+const resultFolderIHC = async (folderName) => {
+  try {
+    const res = await fetch(`/api/ihc/resultfolder?folderName=${encodeURIComponent(folderName)}`)
+    if (res.ok) {
+      const data = await res.json()
+      console.log(data)
+      resultModalTitle.value = `免疫组化分析结果 - 文件夹【${folderName}】`
+      resultModalContent.value = data
+    } else if (res.status === 404) {
+      resultModalTitle.value = `免疫组化分析结果 - 文件夹【${folderName}】`
+      resultModalContent.value = '未找到分析结果'
+    } else {
+      resultModalTitle.value = `免疫组化分析结果 - 文件夹【${folderName}】`
+      resultModalContent.value = `查询失败，状态码：${res.status}`
+    }
+  } catch (error) {
+    console.error('查询文件夹分析结果出错：', error)
+    resultModalTitle.value = `免疫组化分析结果 - 文件夹【${folderName}】`
+    resultModalContent.value = '查询过程中出现错误'
+  } finally {
+    resultModalVisible.value = true
+  }
+}
+
+// 查询单个图片的免疫组化结果
+const resultFileIHC = async (folderName, fileName) => {
+  try {
+    const res = await fetch(`/api/ihc/result?folderName=${encodeURIComponent(folderName)}&fileName=${encodeURIComponent(fileName)}`)
+    if (res.ok) {
+      const data = await res.json()
+      resultModalTitle.value = `免疫组化分析结果 - 图片【${fileName}】`
+      resultModalContent.value = data
+      console.log(data)
+    } else if (res.status === 404) {
+      resultModalTitle.value = `免疫组化分析结果 - 图片【${fileName}】`
+      resultModalContent.value = '未找到分析结果'
+    } else {
+      resultModalTitle.value = `免疫组化分析结果 - 图片【${fileName}】`
+      resultModalContent.value = `查询失败，状态码：${res.status}`
+    }
+  } catch (error) {
+    console.error('查询图片分析结果出错：', error)
+    resultModalTitle.value = `免疫组化分析结果 - 图片【${fileName}】`
+    resultModalContent.value = '查询过程中出现错误'
+  } finally {
+    resultModalVisible.value = true
+  }
+}
+
 onMounted(() => {
   fetchFileList()
   initViewers()
@@ -1095,4 +1220,64 @@ onMounted(() => {
   pointer-events: none;
   z-index: 1000;
 }
+
+.result-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.result-modal-box {
+  background: #fff;
+  border-radius: 8px;
+  width: 60%;
+  max-width: 800px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.result-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.result-modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.result-modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.result-modal-body table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.result-modal-body th,
+.result-modal-body td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.result-modal-body th {
+  background: #f5f5f5;
+}
+
 </style>
