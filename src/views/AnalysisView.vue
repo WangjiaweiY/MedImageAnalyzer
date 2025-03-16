@@ -996,7 +996,7 @@ onMounted(() => {
 }
 
 .folder-upload-label:hover {
-  background-color: #e6f7ff;
+  background-color: #c7edff;
 }
 
 .folder-input {
