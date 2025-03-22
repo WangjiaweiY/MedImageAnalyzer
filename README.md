@@ -61,26 +61,25 @@
 
 1. **登录后进入主界面：** 用户通过登录后进入系统，页面顶部显示欢迎信息。
 
-   ![](.\imgs\main.png)
+   ![](./imgs/main.png)
 
 2. **文件上传：** 用户点击上传按钮选择本地文件夹，上传过程中状态栏显示实时进度。
 
-   ![](.\imgs\upload.png)
+   ![](./imgs/upload.png)
 
 3. **目录浏览：** 左侧侧边栏展示上传文件夹，用户可展开文件夹查看具体图像文件，并进行删除或分析操作。
 
-   ![](.\imgs\list.png)
+   ![](./imgs/list.png)
 
 4. **图像展示：** 右侧展示区域支持多种图模式，用户点击对应的展示框加载所选图像。
 
-   ![](.\imgs\show.png)
+   ![](./imgs/show.png)
 
 5. **图像同步与配准：** 用户可以通过同步按钮开启同步功能，并通过配准按钮发起图像配准操作，配准进度与结果通过状态栏和弹窗反馈给用户。
 
-   ![](.\imgs\register.png)
+   ![](./imgs/register.png)
 
 6. **分析结果查询：** 通过侧边栏或文件操作菜单查询免疫组化分析结果，以弹窗形式呈现详细的分析数据。
 
-   ![](.\imgs\ihcfileshow.png)
-
-​        ![](.\imgs\ihcfoldershow.png)
+   ![](./imgs/ihcfileshow.png)
+​   ![](.\/imgs/ihcfoldershow.png)
