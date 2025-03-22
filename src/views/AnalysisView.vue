@@ -49,9 +49,9 @@
             </label>
           </div>
           <n-dropdown :options="userOptions" @select="handleUserAction">
-            <n-button text class="admin">
-              管理员
-              <n-icon><UserOutlined /></n-icon>
+            <n-button text class="user-welcome">
+              Welcome, {{ username }}
+              <n-icon><DownOutlined /></n-icon>
             </n-button>
           </n-dropdown>
         </div>
@@ -220,7 +220,7 @@
                 <td>{{ item.imageName }}</td>
                 <td>{{ item.positiveArea }}</td>
                 <td>{{ item.totalArea }}</td>
-                <td>{{ item.positiveRatio }}</td>
+                <td>{{ item.positiveRatio + '%' }}</td>
                 <td>{{ item.analysisDate }}</td>
               </tr>
             </tbody>
@@ -248,7 +248,7 @@
               </tr>
               <tr>
                 <td>正染比例</td>
-                <td>{{ resultModalContent.positiveRatio }}</td>
+                <td>{{ resultModalContent.positiveRatio + '%'}}</td>
               </tr>
               <tr>
                 <td>分析时间</td>
@@ -268,7 +268,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, h } from 'vue'
+import { ref, onMounted, nextTick, h, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   NLayout, 
@@ -286,6 +286,7 @@ import {
 } from 'naive-ui'
 import { UserOutlined, SettingOutlined, LogoutOutlined, ReloadOutlined, DownOutlined, UpOutlined, EllipsisOutlined  } from '@vicons/antd'
 import OpenSeadragon from 'openseadragon'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const message = useMessage()
@@ -320,6 +321,9 @@ const folderDziFiles = ref({})
 // 新增用于记录每个文件夹操作菜单显示状态的对象
 const actionMenuVisible = ref({})
 
+const userStore = useUserStore()
+const username = computed(() => userStore.username || 'Guest')
+
 // 切换操作菜单的显示状态
 const toggleActionMenu = (folderName) => {
   actionMenuVisible.value[folderName] = !actionMenuVisible.value[folderName]
@@ -328,7 +332,7 @@ const toggleActionMenu = (folderName) => {
 const deleteFolder = async (folderName) => {
   if (!confirm(`确定删除文件夹 "${folderName}" 吗？删除后将不可恢复`)) return;
   try {
-    const res = await fetch(`http://localhost:8080/api/dzi/deleteFolder/${folderName}`, {
+    const res = await fetch(`/api/dzi/deleteFolder/${folderName}`, {
       method: 'DELETE'
     });
     if (res.ok) {
@@ -358,7 +362,7 @@ const toggleFileActionMenu = (folderName, fileName) => {
 const deleteFile = async (folderName, fileName) => {
   if (!confirm(`确定删除文件 "${fileName}" 吗？`)) return
   try {
-    const res = await fetch(`http://localhost:8080/api/dzi/delete/${folderName}/${fileName}`, {
+    const res = await fetch(`/api/dzi/delete/${folderName}/${fileName}`, {
       method: 'DELETE'
     })
     if (res.ok) {
@@ -407,7 +411,7 @@ const toggleFolder = async (folderName) => {
   } else {
     if (!folderDziFiles.value[folderName]) {
       try {
-        const res = await fetch(`http://localhost:8080/api/dzi/list/${folderName}`);
+        const res = await fetch(`/api/dzi/list/${folderName}`);
         const data = await res.json();
         folderDziFiles.value[folderName] = data;
       } catch (error) {
@@ -421,7 +425,7 @@ const toggleFolder = async (folderName) => {
 
 // 选择子项（第二级目录或文件）时，调用 getDziFile 接口加载资源，并记录文件名称
 const selectDziItem = (parentFolder, item) => {
-  const url = `http://localhost:8080/api/dzi/processed/${parentFolder}/${item.name}/`;
+  const url = `/api/dzi/processed/${parentFolder}/${item.name}/`;
   updateViewerDziUrl(url, item.name);
 }
 
@@ -537,7 +541,7 @@ const uploadFolder = async () => {
     formData.append('files', file, file.webkitRelativePath)
   })
   try {
-    const response = await fetch("http://localhost:8080/api/svs/upload", {
+    const response = await fetch("/api/svs/upload", {
       method: 'POST',
       body: formData
     })
@@ -566,7 +570,7 @@ const uploadFolder = async () => {
 // 拉取一级文件夹列表（以日期命名）
 const fetchFileList = async () => {
   try {
-    const res = await fetch('http://localhost:8080/api/dzi/list')
+    const res = await fetch('/api/dzi/list')
     fileList.value = await res.json()
   } catch (error) {
     console.error('获取文件列表失败:', error)
@@ -685,7 +689,7 @@ const openRegistrationModal = async () => {
   registrationModalVisible.value = true
   selectedRegistrationFolder.value = null
   try {
-    const res = await fetch("http://localhost:8080/api/svs/list")
+    const res = await fetch("/api/svs/list")
     const result = await res.json()
     registrationFolderList.value = Array.isArray(result) ? result : [result]
   } catch (error) {
@@ -715,7 +719,7 @@ const startRegistration = async () => {
   startStatusTimer()
 
   try {
-    const res = await fetch(`http://localhost:8080/api/svs/register/${selectedRegistrationFolder.value}`, {
+    const res = await fetch(`/api/svs/register/${selectedRegistrationFolder.value}`, {
       method: 'POST'
     })
     if (res.ok) {

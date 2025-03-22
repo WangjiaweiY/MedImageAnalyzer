@@ -87,6 +87,7 @@ import { useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { NCard, NForm, NFormItem, NInput, NButton, NIcon } from 'naive-ui'
 import { UserOutlined, LockOutlined } from '@vicons/antd'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const message = useMessage()
@@ -94,6 +95,8 @@ const loading = ref(false)
 const formRef = ref(null)
 // mode 用于标记当前处于登录还是注册状态
 const mode = ref('login')
+const userStore = useUserStore()
+
 
 const formValue = reactive({
   username: '',
@@ -165,6 +168,7 @@ const handleSubmit = async () => {
           }
           if (response.status === 200) {
             message.success('登录成功')
+            userStore.setUsername(formValue.username)
             localStorage.setItem('isLoggedIn', 'true')
             router.push('/analysis')
           } else {
