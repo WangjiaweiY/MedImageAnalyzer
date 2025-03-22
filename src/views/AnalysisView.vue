@@ -210,7 +210,9 @@
                 <th>正染区域</th>
                 <th>总像素</th>
                 <th>正染比例</th>
+                <th>上传时间</th>
                 <th>分析时间</th>
+                <th>操作人</th>
               </tr>
             </thead>
             <tbody>
@@ -221,7 +223,9 @@
                 <td>{{ item.positiveArea }}</td>
                 <td>{{ item.totalArea }}</td>
                 <td>{{ item.positiveRatio + '%' }}</td>
+                <td>{{ item.uploadsDate }}</td>
                 <td>{{ item.analysisDate }}</td>
+                <td>{{ item.userName }}</td>
               </tr>
             </tbody>
           </table>
@@ -251,8 +255,16 @@
                 <td>{{ resultModalContent.positiveRatio + '%'}}</td>
               </tr>
               <tr>
+                <td>上传时间</td>
+                <td>{{ resultModalContent.uploadsDate }}</td>
+              </tr>
+              <tr>
                 <td>分析时间</td>
                 <td>{{ resultModalContent.analysisDate }}</td>
+              </tr>
+              <tr>
+                <td>操作人</td>
+                <td>{{ resultModalContent.userName }}</td>
               </tr>
             </tbody>
           </table>
@@ -718,9 +730,16 @@ const startRegistration = async () => {
   }
   startStatusTimer()
 
+  const username = localStorage.getItem('username') || 'Guest'
+  
   try {
     const res = await fetch(`/api/svs/register/${selectedRegistrationFolder.value}`, {
-      method: 'POST'
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      // 将 username 放入请求体中
+      body: JSON.stringify({ username })
     })
     if (res.ok) {
       statusBar.value.message = "配准完毕"
