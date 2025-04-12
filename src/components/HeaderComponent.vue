@@ -26,11 +26,13 @@
       <!-- 状态栏：显示上传或配准状态，只有 visible 为 true 时显示 -->
       <div class="status-bar" v-if="statusBar.visible">
         <span>
-          {{ statusBar.folder }} 
+          {{ statusBar.operation === 'ihc' ? '文件' : '文件夹' }}{{ statusBar.folder }}
           {{
             statusBar.operation === 'upload'
               ? (statusBar.finished ? '上传完毕' : '正在上传中...')
-              : (statusBar.finished ? '配准完毕' : '正在配准中...')
+              : statusBar.operation === 'register'
+                ? (statusBar.finished ? '配准完毕' : '正在配准中...')
+                : (statusBar.finished ? '分析完毕' : '正在分析中...')
           }}
           ，已用时：{{ statusBar.elapsed }} 秒
         </span>

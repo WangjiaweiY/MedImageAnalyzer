@@ -36,7 +36,9 @@
               <div v-if="actionMenuVisible[item.folderName]" class="action-menu-dropdown">
                 <ul>
                   <li @click="deleteFolder(item.folderName)">删除</li>
-                  <li @click="resultFolderIHC(item.folderName)">查询分析结果</li>
+                  <li @click="resultFolderIHC(item.folderName)">
+                    查询分析结果
+                  </li>
                 </ul>
               </div>
             </div>
@@ -60,8 +62,12 @@
               <div v-if="fileActionMenuVisible[item.folderName] && fileActionMenuVisible[item.folderName][subItem.name]" class="file-action-menu-dropdown">
                 <ul>
                   <li @click="deleteFile(item.folderName, subItem.name)">删除</li>
-                  <li @click="IHCanalysis(item.folderName, subItem.name)">免疫组化分析</li>
-                  <li @click="resultFileIHC(item.folderName, subItem.name)">查询分析结果</li>
+                  <li @click="IHCanalysis(item.folderName, subItem.name)">
+                    免疫组化分析
+                  </li>
+                  <li @click="resultFileIHC(item.folderName, subItem.name)">
+                    查询分析结果
+                  </li>
                 </ul>
               </div>
             </div>
@@ -80,7 +86,8 @@ import {
   NIcon,
   NList,
   NListItem,
-  useMessage
+  useMessage,
+  NSpin
 } from 'naive-ui'
 import { ReloadOutlined, DownOutlined, UpOutlined, EllipsisOutlined } from '@vicons/antd'
 
@@ -129,6 +136,10 @@ const emit = defineEmits([
 
 const message = useMessage()
 
+// 添加分析中状态管理
+const analyzingFiles = ref({})
+const loadingResults = ref({})
+
 // 刷新文件列表
 const fetchFileList = () => {
   emit('fetchFileList')
@@ -173,17 +184,47 @@ const deleteFile = (folderName, fileName) => {
 
 // 免疫组化分析
 const IHCanalysis = (folderName, fileName) => {
+  // 设置分析中状态
+  if (!analyzingFiles.value[folderName]) {
+    analyzingFiles.value[folderName] = {}
+  }
+  analyzingFiles.value[folderName][fileName] = true
+  
+  console.log(`开始分析: ${folderName}/${fileName}`)
   emit('IHCanalysis', folderName, fileName)
 }
 
 // 查询文件夹分析结果
 const resultFolderIHC = (folderName) => {
+  // 设置加载状态
+  loadingResults.value[folderName] = true
+  
+  console.log(`查询文件夹分析结果: ${folderName}`)
   emit('resultFolderIHC', folderName)
+  
+  // 自动清除加载状态
+  setTimeout(() => {
+    loadingResults.value[folderName] = false
+  }, 5000)
 }
 
 // 查询文件分析结果
 const resultFileIHC = (folderName, fileName) => {
+  // 设置加载状态
+  if (!loadingResults.value[folderName]) {
+    loadingResults.value[folderName] = {}
+  }
+  loadingResults.value[folderName][fileName] = true
+  
+  console.log(`查询文件分析结果: ${folderName}/${fileName}`)
   emit('resultFileIHC', folderName, fileName)
+  
+  // 自动清除加载状态
+  setTimeout(() => {
+    if (loadingResults.value[folderName]) {
+      loadingResults.value[folderName][fileName] = false
+    }
+  }, 5000)
 }
 </script>
 
@@ -347,5 +388,19 @@ const resultFileIHC = (folderName, fileName) => {
 .file-action-menu-dropdown li {
   white-space: nowrap;
   padding: 6px 12px;
+}
+
+.analyzing-indicator {
+  margin-left: 8px;
+  display: inline-block;
+}
+
+.file-item.analyzing {
+  background-color: #f0faff;
+}
+
+.file-item.analyzing .file-name {
+  color: #1890ff;
+  font-weight: bold;
 }
 </style> 

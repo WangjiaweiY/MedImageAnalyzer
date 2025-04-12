@@ -30,11 +30,11 @@
         @fetch-file-list="fetchFileList"
         @toggle-folder="toggleFolder"
         @select-dzi-item="selectDziItem"
-        @delete-folder="deleteFolder"
-        @delete-file="deleteFile"
-        @ihcanalysis="IHCanalysis"
-        @result-folder-ihc="resultFolderIHC"
-        @result-file-ihc="resultFileIHC"
+        @deleteFolder="deleteFolder"
+        @deleteFile="deleteFile"
+        @IHCanalysis="IHCanalysis"
+        @resultFolderIHC="resultFolderIHC"
+        @resultFileIHC="resultFileIHC"
       />
 
       <!-- 图像查看器组件 -->
@@ -239,10 +239,125 @@ const deleteFile = async (folderName, fileName) => {
 // 免疫组化分析
 const IHCanalysis = async (folderName, fileName) => {
   try {
+    // 显示分析开始的提示
+    message.loading(`正在开始对 ${fileName} 进行免疫组化分析...`, {duration: 3000})
+    
+    // 显示状态栏提示
+    statusBar.value = {
+      visible: true,
+      folder: fileName,
+      operation: "ihc",
+      message: `正在分析中...`,
+      startTime: Date.now(),
+      elapsed: 0,
+      finished: false,
+      error: false
+    }
+    startStatusTimer()
+    
     await imageApi.analyzeIHC(folderName, fileName)
-    message.success('免疫组化分析已开始处理')
+    
+    // 分析开始后更新状态
+    statusBar.value.message = "分析已提交，正在后台处理"
+    message.success('免疫组化分析已开始处理，完成后可查看结果')
+    
+    // 自动查询结果准备情况
+    checkAnalysisStatus(folderName, fileName)
   } catch (error) {
+    statusBar.value.message = "分析失败"
+    statusBar.value.finished = true
+    statusBar.value.error = true
+    stopStatusTimer()
     message.error(error.message)
+  }
+}
+
+// 定期检查分析状态
+const checkAnalysisStatus = (folderName, fileName) => {
+  const checkInterval = setInterval(async () => {
+    try {
+      const data = await imageApi.getFileAnalysisResult(folderName, fileName)
+      if (data !== null) {
+        // 找到结果，分析已完成
+        clearInterval(checkInterval)
+        statusBar.value.message = "分析完毕"
+        statusBar.value.finished = true
+        stopStatusTimer()
+        message.success(`${fileName} 的免疫组化分析已完成`)
+        
+        // 弹出结果窗口
+        resultModalTitle.value = `免疫组化分析结果 - 图片【${fileName}】`
+        resultModalContent.value = data
+        resultModalVisible.value = true
+      }
+      // 如果结果为null，继续等待
+    } catch (error) {
+      console.error('检查分析状态出错:', error)
+      // 出错时不停止检查，继续尝试
+    }
+  }, 10000) // 每10秒检查一次
+  
+  // 设置最大检查时间，避免无限期等待
+  setTimeout(() => {
+    clearInterval(checkInterval)
+    if (!statusBar.value.finished) {
+      statusBar.value.message = "分析仍在处理中，可稍后查询结果"
+      statusBar.value.finished = true
+      stopStatusTimer()
+    }
+  }, 5 * 60 * 1000) // 最多等待5分钟
+}
+
+// 查询指定文件夹下所有图片的免疫组化结果
+const resultFolderIHC = async (folderName) => {
+  message.loading(`正在查询文件夹 ${folderName} 的分析结果...`)
+  
+  try {
+    const data = await imageApi.getFolderAnalysisResult(folderName)
+    console.log('文件夹分析API返回数据:', data) // 添加日志输出
+    
+    resultModalTitle.value = `免疫组化分析结果 - 文件夹【${folderName}】`
+    if (data === null) {
+      resultModalContent.value = '未找到分析结果，请先进行分析或等待分析完成'
+      message.warning(`未找到文件夹 ${folderName} 的分析结果`)
+    } else {
+      resultModalContent.value = data
+      message.success(`已获取文件夹 ${folderName} 的分析结果`)
+    }
+  } catch (error) {
+    console.error('查询文件夹分析结果出错:', error) // 添加错误日志
+    resultModalTitle.value = `免疫组化分析结果 - 文件夹【${folderName}】`
+    resultModalContent.value = `查询结果出错: ${error.message}`
+    message.error(`查询文件夹 ${folderName} 的分析结果失败`)
+  } finally {
+    resultModalVisible.value = true
+  }
+}
+
+// 查询单个图片的免疫组化结果
+const resultFileIHC = async (folderName, fileName) => {
+  console.log(`AnalysisView接收到查询请求: ${folderName}/${fileName}`)
+  message.loading(`正在查询图片 ${fileName} 的分析结果...`)
+  
+  try {
+    const data = await imageApi.getFileAnalysisResult(folderName, fileName)
+    console.log('API返回数据:', data) // 日志记录API返回
+    
+    resultModalTitle.value = `免疫组化分析结果 - 图片【${fileName}】`
+    if (data === null) {
+      resultModalContent.value = '未找到分析结果，请先进行分析或等待分析完成'
+      message.warning(`未找到图片 ${fileName} 的分析结果`)
+    } else {
+      resultModalContent.value = data
+      message.success(`已获取图片 ${fileName} 的分析结果`)
+    }
+  } catch (error) {
+    console.error('API调用失败:', error)
+    resultModalTitle.value = `免疫组化分析结果 - 图片【${fileName}】`
+    resultModalContent.value = `查询结果出错: ${error.message}`
+    message.error(`查询图片 ${fileName} 的分析结果失败`)
+  } finally {
+    resultModalVisible.value = true
   }
 }
 
@@ -349,43 +464,6 @@ const startRegistration = async () => {
     statusBar.value.error = true
     stopStatusTimer()
     message.error(error.message)
-  }
-}
-
-// 查询指定文件夹下所有图片的免疫组化结果
-const resultFolderIHC = async (folderName) => {
-  try {
-    const data = await imageApi.getFolderAnalysisResult(folderName)
-    resultModalTitle.value = `免疫组化分析结果 - 文件夹【${folderName}】`
-    if (data === null) {
-      resultModalContent.value = '未找到分析结果'
-    } else {
-      resultModalContent.value = data
-    }
-  } catch (error) {
-    resultModalTitle.value = `免疫组化分析结果 - 文件夹【${folderName}】`
-    resultModalContent.value = error.message
-  } finally {
-    resultModalVisible.value = true
-  }
-}
-
-// 查询单个图片的免疫组化结果
-const resultFileIHC = async (folderName, fileName) => {
-  try {
-    console.log(666)
-    const data = await imageApi.getFileAnalysisResult(folderName, fileName)
-    resultModalTitle.value = `免疫组化分析结果 - 图片【${fileName}】`
-    if (data === null) {
-      resultModalContent.value = '未找到分析结果'
-    } else {
-      resultModalContent.value = data
-    }
-  } catch (error) {
-    resultModalTitle.value = `免疫组化分析结果 - 图片【${fileName}】`
-    resultModalContent.value = error.message
-  } finally {
-    resultModalVisible.value = true
   }
 }
 
