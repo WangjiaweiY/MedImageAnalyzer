@@ -65,6 +65,9 @@
                   <li @click="IHCanalysis(item.folderName, subItem.name)">
                     免疫组化分析
                   </li>
+                  <li @click="thresholdAnalysis(item.folderName, subItem.name)">
+                    阈值分析
+                  </li>
                   <li @click="resultFileIHC(item.folderName, subItem.name)">
                     查询分析结果
                   </li>
@@ -131,7 +134,8 @@ const emit = defineEmits([
   'deleteFile',
   'IHCanalysis',
   'resultFolderIHC',
-  'resultFileIHC'
+  'resultFileIHC',
+  'thresholdAnalysis'
 ])
 
 const message = useMessage()
@@ -192,6 +196,12 @@ const IHCanalysis = (folderName, fileName) => {
   
   console.log(`开始分析: ${folderName}/${fileName}`)
   emit('IHCanalysis', folderName, fileName)
+}
+
+// 阈值分析
+const thresholdAnalysis = (folderName, fileName) => {
+  console.log(`开始阈值分析: ${folderName}/${fileName}`)
+  emit('thresholdAnalysis', folderName, fileName)
 }
 
 // 查询文件夹分析结果

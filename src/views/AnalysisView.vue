@@ -35,6 +35,7 @@
         @IHCanalysis="IHCanalysis"
         @resultFolderIHC="resultFolderIHC"
         @resultFileIHC="resultFileIHC"
+        @thresholdAnalysis="thresholdAnalysis"
       />
 
       <!-- 图像查看器组件 -->
@@ -65,6 +66,15 @@
       @update:result-modal-visible="updateResultModalVisible"
       @start-registration="startRegistration"
     />
+
+    <!-- 阈值分析模态框组件 -->
+    <threshold-analysis-modal
+      :visible="thresholdAnalysisVisible"
+      :folder-name="thresholdAnalysisFolder"
+      :file-name="thresholdAnalysisFile"
+      @update:visible="(val) => thresholdAnalysisVisible = val"
+      @save-results="saveThresholdResults"
+    />
   </n-layout>
 </template>
 
@@ -81,6 +91,7 @@ import HeaderComponent from '@/components/HeaderComponent.vue'
 import FileExplorerComponent from '@/components/FileExplorerComponent.vue'
 import ViewerComponent from '@/components/ViewerComponent.vue'
 import ModalComponent from '@/components/ModalComponent.vue'
+import ThresholdAnalysisModal from '@/components/ThresholdAnalysisModal.vue'
 
 const message = useMessage()
 const userStore = useUserStore()
@@ -128,6 +139,11 @@ const selectedRegistrationFolder = ref(null)
 const resultModalVisible = ref(false)
 const resultModalTitle = ref('')
 const resultModalContent = ref(null)
+
+// 阈值分析相关状态
+const thresholdAnalysisVisible = ref(false)
+const thresholdAnalysisFolder = ref('')
+const thresholdAnalysisFile = ref('')
 
 // 模态框状态更新函数
 const updateRegistrationModalVisible = (value) => { registrationModalVisible.value = value }
@@ -359,6 +375,32 @@ const resultFileIHC = async (folderName, fileName) => {
   } finally {
     resultModalVisible.value = true
   }
+}
+
+// 阈值分析请求
+const thresholdAnalysis = (folderName, fileName) => {
+  console.log(`接收到阈值分析请求: ${folderName}/${fileName}`)
+  
+  // 设置阈值分析弹窗的数据
+  thresholdAnalysisFolder.value = folderName
+  thresholdAnalysisFile.value = fileName
+  thresholdAnalysisVisible.value = true
+  
+  message.info(`正在打开【${fileName}】的阈值分析界面`)
+}
+
+// 保存阈值分析结果
+const saveThresholdResults = (results) => {
+  console.log('保存阈值分析结果:', results)
+  message.success(`保存了阈值${results.threshold}的分析结果`)
+  
+  // 可以将阈值分析结果保存到服务器或进行其他处理
+  // ...
+  
+  // 可以在保存后显示结果模态框
+  resultModalTitle.value = `阈值分析结果 - 图片【${results.imageName}】`
+  resultModalContent.value = results
+  resultModalVisible.value = true
 }
 
 // 文件夹上传处理
