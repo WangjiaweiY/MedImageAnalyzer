@@ -36,6 +36,8 @@
         @resultFolderIHC="resultFolderIHC"
         @resultFileIHC="resultFileIHC"
         @thresholdAnalysis="thresholdAnalysis"
+        @fullnetAnalysis="fullnetAnalysis"
+        @resultFolderFullnet="resultFolderFullnet"
       />
 
       <!-- 图像查看器组件 -->
@@ -75,6 +77,22 @@
       @update:visible="(val) => thresholdAnalysisVisible = val"
       @save-results="saveThresholdResults"
     />
+
+    <!-- Fullnet分析模态框组件 -->
+    <fullnet-analysis-modal
+      :visible="fullnetAnalysisVisible"
+      :folder-name="fullnetAnalysisFolder"
+      :file-name="fullnetAnalysisFile"
+      @update:visible="(val) => fullnetAnalysisVisible = val"
+      @save-results="saveFullnetResults"
+    />
+
+    <!-- Fullnet结果查询模态框组件 -->
+    <fullnet-results-modal
+      :visible="fullnetResultsVisible"
+      :folder-name="fullnetResultsFolder"
+      @update:visible="(val) => fullnetResultsVisible = val"
+    />
   </n-layout>
 </template>
 
@@ -92,6 +110,8 @@ import FileExplorerComponent from '@/components/FileExplorerComponent.vue'
 import ViewerComponent from '@/components/ViewerComponent.vue'
 import ModalComponent from '@/components/ModalComponent.vue'
 import ThresholdAnalysisModal from '@/components/ThresholdAnalysisModal.vue'
+import FullnetAnalysisModal from '@/components/FullnetAnalysisModal.vue'
+import FullnetResultsModal from '@/components/FullnetResultsModal.vue'
 
 const message = useMessage()
 const userStore = useUserStore()
@@ -507,6 +527,75 @@ const startRegistration = async () => {
     stopStatusTimer()
     message.error(error.message)
   }
+}
+
+// Fullnet分析相关状态
+const fullnetAnalysisVisible = ref(false)
+const fullnetAnalysisFolder = ref('')
+const fullnetAnalysisFile = ref('')
+
+// Fullnet分析相关函数
+const saveFullnetResults = (results) => {
+  console.log('保存Fullnet分析结果:', results)
+  message.success(`保存了Fullnet分析结果`)
+  
+  try {
+    // 将Fullnet分析结果保存到服务器
+    imageApi.saveFullnetAnalysisResult(
+      results.folderName, 
+      results.fileName, 
+      results
+    ).then(() => {
+      console.log('Fullnet分析结果已保存到服务器')
+    }).catch(error => {
+      console.error('保存Fullnet分析结果失败:', error)
+    })
+    
+    // 在保存后显示结果模态框
+    resultModalTitle.value = `Fullnet分析结果 - 图片【${results.fileName}】`
+    resultModalContent.value = results
+    resultModalVisible.value = true
+  } catch (error) {
+    console.error('处理Fullnet分析结果出错:', error)
+    message.error('保存分析结果失败: ' + error.message)
+  }
+}
+
+// Fullnet结果查询相关状态
+const fullnetResultsVisible = ref(false)
+const fullnetResultsFolder = ref('')
+
+// Fullnet结果查询相关函数
+const updateFullnetResultsVisible = (value) => { fullnetResultsVisible.value = value }
+
+// Fullnet分析请求
+const fullnetAnalysis = (folderName, fileName) => {
+  console.log(`接收到Fullnet分析请求: ${folderName}/${fileName}`)
+  
+  // 设置Fullnet分析弹窗的数据
+  fullnetAnalysisFolder.value = folderName
+  fullnetAnalysisFile.value = fileName
+  fullnetAnalysisVisible.value = true
+  
+  // 重要: 确保visible状态变更，触发模态框重新打开
+  setTimeout(() => {
+    if (!fullnetAnalysisVisible.value) {
+      fullnetAnalysisVisible.value = true
+    }
+  }, 100)
+  
+  message.info(`正在打开【${fileName}】的Fullnet分析界面`)
+}
+
+// 查询文件夹Fullnet分析结果
+const resultFolderFullnet = (folderName) => {
+  console.log(`查询文件夹Fullnet分析结果: ${folderName}`)
+  
+  // 设置Fullnet结果查询弹窗的数据
+  fullnetResultsFolder.value = folderName
+  fullnetResultsVisible.value = true
+  
+  message.info(`正在查询文件夹【${folderName}】的Fullnet分析结果`)
 }
 
 onMounted(() => {

@@ -37,7 +37,10 @@
                 <ul>
                   <li @click="deleteFolder(item.folderName)">删除</li>
                   <li @click="resultFolderIHC(item.folderName)">
-                    查询分析结果
+                    查询免疫组化分析结果
+                  </li>
+                  <li @click="resultFolderFullnet(item.folderName)">
+                    查询Fullnet分析结果
                   </li>
                 </ul>
               </div>
@@ -67,6 +70,9 @@
                   </li>
                   <li @click="thresholdAnalysis(item.folderName, subItem.name)">
                     阈值分析
+                  </li>
+                  <li @click="fullnetAnalysis(item.folderName, subItem.name)">
+                    Fullnet分析
                   </li>
                   <li @click="resultFileIHC(item.folderName, subItem.name)">
                     查询分析结果
@@ -135,7 +141,9 @@ const emit = defineEmits([
   'IHCanalysis',
   'resultFolderIHC',
   'resultFileIHC',
-  'thresholdAnalysis'
+  'thresholdAnalysis',
+  'fullnetAnalysis',
+  'resultFolderFullnet'
 ])
 
 const message = useMessage()
@@ -235,6 +243,18 @@ const resultFileIHC = (folderName, fileName) => {
       loadingResults.value[folderName][fileName] = false
     }
   }, 5000)
+}
+
+// Fullnet分析
+const fullnetAnalysis = (folderName, fileName) => {
+  console.log(`开始Fullnet分析: ${folderName}/${fileName}`)
+  emit('fullnetAnalysis', folderName, fileName)
+}
+
+// 查询Fullnet分析结果
+const resultFolderFullnet = (folderName) => {
+  console.log(`查询Fullnet分析结果: ${folderName}`)
+  emit('resultFolderFullnet', folderName)
 }
 </script>
 

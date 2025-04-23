@@ -144,6 +144,58 @@ export const imageApi = {
     } catch (error) {
       return handleError(error, '查询图片分析结果失败');
     }
+  },
+  
+  // Fullnet分析
+  analyzeFullnet: async (folderName, fileName) => {
+    try {
+      const filename = `${folderName}/${fileName}`;
+      const response = await fetch('/api/fullnet/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ filename })
+      });
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      return handleError(error, 'Fullnet分析失败');
+    }
+  },
+  
+  // 查询Fullnet分析任务状态
+  getFullnetTaskStatus: async (taskId) => {
+    try {
+      const res = await fetch(`/api/fullnet/task/${taskId}`);
+      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+      return await res.json();
+    } catch (error) {
+      return handleError(error, '查询分析任务状态失败');
+    }
+  },
+  
+  // 获取单个Fullnet分析结果
+  getFullnetResult: async (fileName) => {
+    try {
+      const res = await fetch(`/api/fullnet/result?filename=${encodeURIComponent(fileName)}`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+      return await res.json();
+    } catch (error) {
+      return handleError(error, '获取Fullnet分析结果失败');
+    }
+  },
+  
+  // 获取所有Fullnet分析结果
+  getAllFullnetResults: async () => {
+    try {
+      const res = await fetch('/api/fullnet/results');
+      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+      return await res.json();
+    } catch (error) {
+      return handleError(error, '获取所有Fullnet分析结果失败');
+    }
   }
 };
 
