@@ -36,16 +36,13 @@
         <div v-else-if="analysisResult" class="result-container">
           <div class="image-container">
             <div class="image-wrapper">
-              <h4>原始图像</h4>
-              <img :src="analysisResult.originalImageUrl" alt="原始图像" class="result-image" @error="handleImageError($event, '原始图像')" />
-            </div>
-            <div class="image-wrapper" v-if="analysisResult.resultImagePath">
               <h4>分析结果</h4>
-              <img :src="analysisResult.resultImagePath" alt="分析结果图像" class="result-image" @error="handleImageError($event, '结果图像')" />
-            </div>
-            <div class="image-wrapper" v-if="analysisResult.overlayImagePath">
-              <h4>叠加显示</h4>
-              <img :src="analysisResult.overlayImagePath" alt="叠加结果图像" class="result-image" @error="handleImageError($event, '叠加显示')" />
+              <img 
+                :src="analysisResult.combinedResultImage" 
+                alt="分析结果图像" 
+                class="result-image" 
+                @error="handleImageError($event, '结果图像')" 
+              />
             </div>
           </div>
           <div class="stats-container">
@@ -76,7 +73,7 @@
             </div>
             <div class="stat-item">
               <n-statistic label="分析时间">
-                {{ analysisResult.analysisTime || '未知' }}
+                {{ analysisResult.parameters?.analysisTime || '未知' }}
               </n-statistic>
             </div>
           </div>
@@ -233,9 +230,7 @@ async function checkTaskStatus() {
       if (result) {
         analysisResult.value = {
           ...result,
-          originalImageUrl: `/api/images/${props.folderName}/${props.fileName}`,
-          resultImagePath: result.resultImagePath ? `/api/images/${result.resultImagePath}` : null,
-          overlayImagePath: result.overlayImagePath ? `/api/images/${result.overlayImagePath}` : null,
+          combinedResultImage: result.resultImagePath ? `/api/fullnet/images/${result.resultImagePath}` : null,
           parameters: {
             cellCount: result.cellCount,
             cellArea: result.cellArea,
@@ -358,14 +353,13 @@ function handleImageError(event, imageType) {
 
 .image-container {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  justify-content: space-between;
+  justify-content: center;
+  margin-bottom: 20px;
 }
 
 .image-wrapper {
-  flex: 1;
-  min-width: 300px;
+  width: 100%;
+  max-width: 800px;
   text-align: center;
 }
 
@@ -374,8 +368,8 @@ function handleImageError(event, imageType) {
 }
 
 .result-image {
-  max-width: 100%;
-  max-height: 250px;
+  width: 100%;
+  max-height: 500px;
   object-fit: contain;
   border: 1px solid #eee;
 }
