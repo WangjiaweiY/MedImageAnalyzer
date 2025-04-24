@@ -57,52 +57,6 @@
                 class="result-image" 
               />
             </div>
-            <div class="image-item" v-if="selectedResult.overlayImagePath">
-              <h4>叠加显示图像</h4>
-              <img 
-                :src="getImagePath(selectedResult.overlayImagePath)" 
-                alt="叠加显示图像" 
-                class="result-image" 
-              />
-            </div>
-          </div>
-          
-          <div class="stats-grid">
-            <div class="stat-item">
-              <n-statistic label="文件名">
-                {{ selectedResult.filename }}
-              </n-statistic>
-            </div>
-            <div class="stat-item">
-              <n-statistic label="细胞数量">
-                {{ selectedResult.cellCount || '未知' }}
-              </n-statistic>
-            </div>
-            <div class="stat-item">
-              <n-statistic label="细胞面积">
-                {{ formatNumber(selectedResult.cellArea) }} 像素
-              </n-statistic>
-            </div>
-            <div class="stat-item">
-              <n-statistic label="总面积">
-                {{ formatNumber(selectedResult.totalArea) }} 像素
-              </n-statistic>
-            </div>
-            <div class="stat-item">
-              <n-statistic label="细胞占比">
-                {{ (selectedResult.cellRatio || 0).toFixed(2) }}%
-              </n-statistic>
-            </div>
-            <div class="stat-item">
-              <n-statistic label="平均细胞大小">
-                {{ formatNumber(selectedResult.avgCellSize) }} 像素
-              </n-statistic>
-            </div>
-            <div class="stat-item">
-              <n-statistic label="分析时间">
-                {{ selectedResult.analysisTime || '未知' }}
-              </n-statistic>
-            </div>
           </div>
         </div>
       </div>
@@ -217,7 +171,7 @@ function clearSearch() {
 // 获取图像路径
 function getImagePath(path) {
   if (!path) return ''
-  return `/api/images/${path}`
+  return `/api/fullnet/images/${path}`
 }
 
 // 选择结果

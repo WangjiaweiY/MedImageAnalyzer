@@ -196,6 +196,62 @@ export const imageApi = {
     } catch (error) {
       return handleError(error, '获取所有Fullnet分析结果失败');
     }
+  },
+  
+  // 保存Fullnet分析结果
+  saveFullnetAnalysisResult: async (folderName, fileName, data) => {
+    try {
+      const response = await fetch('/api/fullnet/save-result', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ folderName, fileName, data })
+      });
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      return handleError(error, '保存Fullnet分析结果失败');
+    }
+  },
+  
+  // 获取Fullnet历史分析结果
+  getFullnetHistoryResults: async (params) => {
+    try {
+      const { folderName, fileName } = params;
+      const url = `/api/fullnet/history?folderName=${encodeURIComponent(folderName)}&fileName=${encodeURIComponent(fileName)}`;
+      const res = await fetch(url);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+      return await res.json();
+    } catch (error) {
+      return handleError(error, '获取Fullnet历史分析结果失败');
+    }
+  },
+  
+  // 获取特定ID的Fullnet分析结果
+  getFullnetResultById: async (resultId) => {
+    try {
+      const res = await fetch(`/api/fullnet/result/${resultId}`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+      return await res.json();
+    } catch (error) {
+      return handleError(error, '获取特定ID的Fullnet分析结果失败');
+    }
+  },
+  
+  // 删除Fullnet历史分析结果
+  deleteFullnetResult: async (resultId) => {
+    try {
+      const res = await fetch(`/api/fullnet/result/${resultId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+      return true;
+    } catch (error) {
+      return handleError(error, '删除Fullnet历史分析结果失败');
+    }
   }
 };
 
