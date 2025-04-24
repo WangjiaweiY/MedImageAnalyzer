@@ -216,42 +216,52 @@ async function checkTaskStatus() {
   if (!currentTaskId.value) return
   
   try {
-    const result = await imageApi.getFullnetTaskStatus(currentTaskId.value)
-    taskStatus.value = result.status
-    console.log('任务状态更新:', result) // 添加日志，查看返回数据结构
+    const response = await imageApi.getFullnetTaskStatus(currentTaskId.value)
+    const { task, result } = response
+    taskStatus.value = task.status
+    console.log('任务状态更新:', response) // 添加日志，查看完整返回数据结构
     
-    if (result.status === 'COMPLETED') {
+    if (task.status === 'COMPLETED') {
       // 分析完成，获取结果
-      clearInterval(statusCheckInterval)
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval)
+        statusCheckInterval = null
+      }
       analyzing.value = false
       
       // 处理并展示结果
-      analysisResult.value = {
-        ...result.data,
-        originalImageUrl: `/api/images/${props.folderName}/${props.fileName}`,
-        resultImagePath: result.data?.resultImagePath ? `/api/images/${result.data.resultImagePath}` : null,
-        overlayImagePath: result.data?.overlayImagePath ? `/api/images/${result.data.overlayImagePath}` : null,
-        parameters: result.data?.parameters || {}
-      }
-      
-      console.log('设置分析结果数据:', analysisResult.value) // 添加日志，查看处理后的结果数据
-      
-      // 确保在分析完成后UI有足够时间更新
-      setTimeout(() => {
-        if (!analysisResult.value) {
-          message.warning('任务完成但未获取到结果数据，请尝试重新分析或联系管理员')
-        } else {
-          message.success('Fullnet分析完成')
+      if (result) {
+        analysisResult.value = {
+          ...result,
+          originalImageUrl: `/api/images/${props.folderName}/${props.fileName}`,
+          resultImagePath: result.resultImagePath ? `/api/images/${result.resultImagePath}` : null,
+          overlayImagePath: result.overlayImagePath ? `/api/images/${result.overlayImagePath}` : null,
+          parameters: {
+            cellCount: result.cellCount,
+            cellArea: result.cellArea,
+            totalArea: result.totalArea,
+            cellRatio: result.cellRatio,
+            avgCellSize: result.avgCellSize,
+            analysisTime: result.analysisTime
+          }
         }
-      }, 100)
-    } else if (result.status === 'FAILED') {
+        
+        console.log('设置分析结果数据:', analysisResult.value) // 添加日志，查看处理后的结果数据
+        message.success('Fullnet分析完成')
+      } else {
+        message.warning('任务完成但未获取到结果数据，请尝试重新分析或联系管理员')
+      }
+    } else if (task.status === 'FAILED') {
       // 分析失败
-      clearInterval(statusCheckInterval)
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval)
+        statusCheckInterval = null
+      }
       analyzing.value = false
-      message.error(`分析失败: ${result.message || '未知错误'}`)
+      message.error(`分析失败: ${task.errorMessage || '未知错误'}`)
     } else {
       // 分析仍在进行中，更新状态信息
-      message.info(`任务状态: ${result.status}, ${result.message || '正在处理中...'}`)
+      message.info(`任务状态: ${task.status}, ${task.progress || '正在处理中...'}`)
     }
   } catch (error) {
     console.error('查询任务状态错误:', error)
