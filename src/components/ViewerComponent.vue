@@ -15,6 +15,43 @@
         <div v-if="!hasDzi(index)" class="placeholder">
           <n-empty size="large" description="请选择图像文件"></n-empty>
         </div>
+        
+        <!-- 添加标注画布组件 -->
+        <div v-if="hasDzi(index)" :class="{ 'annotation-enabled': annotationMode && selectedViewerIndex === index }">
+          <fabric-canvas
+            :ref="el => annotationCanvasRefs[index] = el"
+            :tool="currentTool"
+            :color="currentColor"
+            :annotation-enabled="annotationMode && selectedViewerIndex === index"
+            v-model:annotation-data="annotationData[index]"
+            @annotation-changed="handleAnnotationChanged(index)"
+          />
+        </div>
+        
+        <!-- 添加工具箱，只在该查看器被选中且标注模式开启时显示 -->
+        <image-toolbox
+          v-if="hasDzi(index) && selectedViewerIndex === index && annotationMode"
+          @tool-changed="handleToolChanged"
+          @clear-annotations="clearAnnotations(index)"
+        />
+        
+        <!-- 添加标注模式切换按钮 -->
+        <div v-if="hasDzi(index) && selectedViewerIndex === index" class="annotation-toggle">
+          <n-tooltip placement="left">
+            <template #trigger>
+              <n-button 
+                circle 
+                :type="annotationMode ? 'primary' : 'default'" 
+                @click="toggleAnnotationMode"
+              >
+                <template #icon>
+                  <n-icon><edit-outlined /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            <span>{{ annotationMode ? '退出标注模式' : '进入标注模式' }}</span>
+          </n-tooltip>
+        </div>
       </div>
     </div>
 
@@ -30,13 +67,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch, defineProps, defineEmits } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import { 
   NLayoutContent, 
-  NEmpty
+  NEmpty,
+  NButton,
+  NTooltip,
+  NIcon
 } from 'naive-ui'
+import { EditOutlined } from '@vicons/antd'
 import OpenSeadragon from 'openseadragon'
 import { throttle } from '../utils/throttle'
+import FabricCanvas from './FabricCanvas.vue'
+import ImageToolbox from './ImageToolbox.vue'
 
 const props = defineProps({
   layoutType: {
@@ -77,6 +120,54 @@ const tooltip = ref({
   text: ''
 })
 
+// 标注相关状态
+const annotationMode = ref(false);
+const currentTool = ref('select');
+const currentColor = ref('#1890ff');
+const annotationCanvasRefs = ref([]);
+const annotationData = ref([]);
+
+// 切换标注模式
+const toggleAnnotationMode = () => {
+  annotationMode.value = !annotationMode.value;
+  
+  // 如果禁用了标注模式，需要通知OSD允许交互
+  if (!annotationMode.value && props.selectedViewerIndex !== null) {
+    const viewer = props.viewers[props.selectedViewerIndex];
+    if (viewer) {
+      viewer.setMouseNavEnabled(true);
+      viewer.gestureSettingsMouse.clickToZoom = true;
+    }
+  } else if (annotationMode.value && props.selectedViewerIndex !== null) {
+    // 如果启用了标注模式，禁用OSD的交互
+    const viewer = props.viewers[props.selectedViewerIndex];
+    if (viewer) {
+      viewer.setMouseNavEnabled(false);
+      viewer.gestureSettingsMouse.clickToZoom = false;
+    }
+  }
+};
+
+// 处理工具切换
+const handleToolChanged = (toolInfo) => {
+  currentTool.value = toolInfo.tool;
+  currentColor.value = toolInfo.color;
+};
+
+// 清除标注
+const clearAnnotations = (index) => {
+  const canvas = annotationCanvasRefs.value[index];
+  if (canvas) {
+    canvas.clearCanvas();
+  }
+};
+
+// 处理标注变化
+const handleAnnotationChanged = (index) => {
+  // 可以在这里添加保存标注数据的逻辑
+  console.log(`标注已更改: 查看器 ${index}`);
+};
+
 // 检查某个索引的查看器是否有加载的图像
 const hasDzi = (index) => {
   return props.viewers[index] !== null
@@ -107,11 +198,30 @@ const selectViewer = (index) => {
 // 监听布局变化，当布局改变时重新初始化查看器
 watch(() => props.layoutType, () => {
   emit('initViewers')
+  annotationData.value = new Array(props.layoutType).fill('');
 })
 
+// 监听所选查看器变化
+watch(() => props.selectedViewerIndex, (newIndex, oldIndex) => {
+  // 如果启用了标注模式，根据所选查看器更新OSD的交互状态
+  if (annotationMode.value) {
+    if (oldIndex !== null && props.viewers[oldIndex]) {
+      props.viewers[oldIndex].setMouseNavEnabled(true);
+      props.viewers[oldIndex].gestureSettingsMouse.clickToZoom = true;
+    }
+    
+    if (newIndex !== null && props.viewers[newIndex]) {
+      props.viewers[newIndex].setMouseNavEnabled(false);
+      props.viewers[newIndex].gestureSettingsMouse.clickToZoom = false;
+    }
+  }
+})
+
+// 初始化
 onMounted(() => {
   nextTick(() => {
     emit('initViewers')
+    annotationData.value = new Array(props.layoutType).fill('');
   })
 })
 </script>
@@ -184,5 +294,16 @@ onMounted(() => {
   font-size: 12px;
   pointer-events: none;
   z-index: 1000;
+}
+
+.annotation-toggle {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 101;
+}
+
+.annotation-enabled {
+  pointer-events: auto;
 }
 </style> 

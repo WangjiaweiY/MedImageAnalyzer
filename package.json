@@ -12,6 +12,7 @@
     "@css-render/vue3-ssr": "^0.15.12",
     "@vicons/antd": "^0.13.0",
     "axios": "^1.7.9",
+    "fabric": "^5.5.2",
     "naive-ui": "^2.38.1",
     "openseadragon": "^5.0.1",
     "pinia": "^2.1.7",
