@@ -123,7 +123,7 @@ const tooltip = ref({
 // 标注相关状态
 const annotationMode = ref(false);
 const currentTool = ref('select');
-const currentColor = ref('#1890ff');
+const currentColor = ref('red');
 const annotationCanvasRefs = ref([]);
 const annotationData = ref([]);
 
@@ -131,20 +131,23 @@ const annotationData = ref([]);
 const toggleAnnotationMode = () => {
   annotationMode.value = !annotationMode.value;
   
-  // 如果禁用了标注模式，需要通知OSD允许交互
-  if (!annotationMode.value && props.selectedViewerIndex !== null) {
-    const viewer = props.viewers[props.selectedViewerIndex];
-    if (viewer) {
-      viewer.setMouseNavEnabled(true);
-      viewer.gestureSettingsMouse.clickToZoom = true;
-    }
-  } else if (annotationMode.value && props.selectedViewerIndex !== null) {
-    // 如果启用了标注模式，禁用OSD的交互
-    const viewer = props.viewers[props.selectedViewerIndex];
-    if (viewer) {
-      viewer.setMouseNavEnabled(false);
-      viewer.gestureSettingsMouse.clickToZoom = false;
-    }
+  // 处理所有查看器的交互状态
+  if (annotationMode.value) {
+    // 开启标注模式：禁用所有查看器的交互
+    props.viewers.forEach((viewer, index) => {
+      if (viewer) {
+        viewer.setMouseNavEnabled(false);
+        viewer.gestureSettingsMouse.clickToZoom = false;
+      }
+    });
+  } else {
+    // 关闭标注模式：启用所有查看器的交互
+    props.viewers.forEach((viewer, index) => {
+      if (viewer) {
+        viewer.setMouseNavEnabled(true);
+        viewer.gestureSettingsMouse.clickToZoom = true;
+      }
+    });
   }
 };
 

@@ -106,7 +106,7 @@ const emit = defineEmits(['tool-changed', 'clear-annotations']);
 
 const currentTool = ref('select'); // 默认选择工具
 const colorPickerVisible = ref(false);
-const currentColor = ref('#1890ff'); // 默认蓝色
+const currentColor = ref('red'); // 默认蓝色
 
 const selectTool = (tool) => {
   currentTool.value = tool;
