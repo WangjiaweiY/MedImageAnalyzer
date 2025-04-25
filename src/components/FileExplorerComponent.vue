@@ -10,6 +10,14 @@
       <n-button circle type="primary" size="small" @click="fetchFileList">
         <n-icon><ReloadOutlined /></n-icon>
       </n-button>
+      <n-tooltip trigger="hover" placement="bottom">
+        <template #trigger>
+          <n-button circle type="info" size="small" @click="handleAutoDisplayAllImages" style="margin-left: 8px;">
+            <n-icon><EyeOutlined /></n-icon>
+          </n-button>
+        </template>
+        一键展示图片
+      </n-tooltip>
     </div>
     <n-list class="file-list" hoverable>
       <n-list-item 
@@ -35,12 +43,15 @@
               </button>
               <div v-if="actionMenuVisible[item.folderName]" class="action-menu-dropdown">
                 <ul>
-                  <li @click="deleteFolder(item.folderName)">删除</li>
-                  <li @click="resultFolderIHC(item.folderName)">
+                  <li @click="handleFolderMenuAction(() => deleteFolder(item.folderName))">删除</li>
+                  <li @click="handleFolderMenuAction(() => resultFolderIHC(item.folderName))">
                     查询免疫组化分析结果
                   </li>
-                  <li @click="resultFolderFullnet(item.folderName)">
+                  <li @click="handleFolderMenuAction(() => resultFolderFullnet(item.folderName))">
                     查询Fullnet分析结果
+                  </li>
+                  <li @click="handleFolderMenuAction(() => autoDisplayImages(item.folderName))">
+                    一键展示
                   </li>
                 </ul>
               </div>
@@ -64,17 +75,17 @@
               </button>
               <div v-if="fileActionMenuVisible[item.folderName] && fileActionMenuVisible[item.folderName][subItem.name]" class="file-action-menu-dropdown">
                 <ul>
-                  <li @click="deleteFile(item.folderName, subItem.name)">删除</li>
-                  <li @click="IHCanalysis(item.folderName, subItem.name)">
+                  <li @click="handleFileMenuAction(item.folderName, subItem.name, () => deleteFile(item.folderName, subItem.name))">删除</li>
+                  <li @click="handleFileMenuAction(item.folderName, subItem.name, () => IHCanalysis(item.folderName, subItem.name))">
                     免疫组化分析
                   </li>
-                  <li @click="thresholdAnalysis(item.folderName, subItem.name)">
+                  <li @click="handleFileMenuAction(item.folderName, subItem.name, () => thresholdAnalysis(item.folderName, subItem.name))">
                     阈值分析
                   </li>
-                  <li @click="fullnetAnalysis(item.folderName, subItem.name)">
+                  <li @click="handleFileMenuAction(item.folderName, subItem.name, () => fullnetAnalysis(item.folderName, subItem.name))">
                     Fullnet分析
                   </li>
-                  <li @click="resultFileIHC(item.folderName, subItem.name)">
+                  <li @click="handleFileMenuAction(item.folderName, subItem.name, () => resultFileIHC(item.folderName, subItem.name))">
                     查询分析结果
                   </li>
                 </ul>
@@ -88,7 +99,7 @@
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits } from 'vue'
+import { ref, defineProps, defineEmits, onMounted, onUnmounted } from 'vue'
 import { 
   NLayoutSider,
   NButton,
@@ -96,9 +107,16 @@ import {
   NList,
   NListItem,
   useMessage,
-  NSpin
+  NSpin,
+  NTooltip
 } from 'naive-ui'
-import { ReloadOutlined, DownOutlined, UpOutlined, EllipsisOutlined } from '@vicons/antd'
+import { 
+  ReloadOutlined, 
+  DownOutlined, 
+  UpOutlined, 
+  EllipsisOutlined,
+  EyeOutlined
+} from '@vicons/antd'
 
 const props = defineProps({
   fileList: {
@@ -143,7 +161,8 @@ const emit = defineEmits([
   'resultFileIHC',
   'thresholdAnalysis',
   'fullnetAnalysis',
-  'resultFolderFullnet'
+  'resultFolderFullnet',
+  'autoDisplayImages'
 ])
 
 const message = useMessage()
@@ -256,6 +275,103 @@ const resultFolderFullnet = (folderName) => {
   console.log(`查询Fullnet分析结果: ${folderName}`)
   emit('resultFolderFullnet', folderName)
 }
+
+// 一键展示功能
+const autoDisplayImages = (folderName) => {
+  // 确保文件夹展开，以便获取文件列表
+  if (!props.expandedFolders[folderName]) {
+    emit('toggleFolder', folderName)
+  }
+  
+  // 获取文件夹中的图片文件
+  const files = props.folderDziFiles[folderName] || []
+  
+  if (files.length === 0) {
+    message.warning('当前文件夹无可展示的图片')
+    return
+  }
+  
+  console.log(`一键展示文件夹 ${folderName} 中的图片`)
+  // 发出自动展示事件，传递文件夹名和文件列表
+  emit('autoDisplayImages', folderName, files)
+}
+
+// 一键展示所有图片功能
+const handleAutoDisplayAllImages = () => {
+  if (!props.selectedFolder) {
+    message.warning('请先选择一个文件夹')
+    return
+  }
+  
+  // 确保文件夹展开，以便获取文件列表
+  if (!props.expandedFolders[props.selectedFolder]) {
+    emit('toggleFolder', props.selectedFolder)
+  }
+  
+  // 获取文件夹中的图片文件
+  const files = props.folderDziFiles[props.selectedFolder] || []
+  
+  // 筛选图像文件（根据扩展名）
+  const imageFiles = files.filter(file => {
+    const ext = file.name.split('.').pop().toLowerCase()
+    return ['png', 'jpg', 'jpeg', 'tif', 'tiff'].includes(ext)
+  })
+  
+  if (imageFiles.length === 0) {
+    message.warning('当前文件夹无可展示的图片')
+    return
+  }
+  
+  console.log(`一键展示文件夹 ${props.selectedFolder} 中的图片`)
+  // 发出自动展示事件，传递文件夹名和文件列表
+  emit('autoDisplayImages', props.selectedFolder, imageFiles)
+}
+
+// 处理文件夹菜单操作，执行后关闭菜单
+const handleFolderMenuAction = (actionFn) => {
+  actionFn()
+  // 关闭所有文件夹操作菜单
+  const newActionMenuVisible = {}
+  emit('update:actionMenuVisible', newActionMenuVisible)
+}
+
+// 处理文件菜单操作，执行后关闭菜单
+const handleFileMenuAction = (folderName, fileName, actionFn) => {
+  actionFn()
+  // 关闭特定文件的操作菜单
+  const newFileActionMenuVisible = { ...props.fileActionMenuVisible }
+  if (newFileActionMenuVisible[folderName]) {
+    newFileActionMenuVisible[folderName][fileName] = false
+    emit('update:fileActionMenuVisible', newFileActionMenuVisible)
+  }
+}
+
+// 处理文档点击事件，点击外部区域时关闭所有菜单
+const handleDocumentClick = (event) => {
+  // 检查点击是否发生在菜单按钮或菜单内
+  const isActionButton = event.target.closest('.action-menu-btn') || 
+                        event.target.closest('.file-action-menu-btn')
+  const isActionMenu = event.target.closest('.action-menu-dropdown') || 
+                      event.target.closest('.file-action-menu-dropdown')
+  
+  // 如果点击不在菜单按钮或菜单内，关闭所有菜单
+  if (!isActionButton && !isActionMenu) {
+    const newActionMenuVisible = {}
+    const newFileActionMenuVisible = {}
+    emit('update:actionMenuVisible', newActionMenuVisible)
+    emit('update:fileActionMenuVisible', newFileActionMenuVisible)
+  }
+}
+
+// 在组件挂载时添加点击事件监听
+onMounted(() => {
+  document.addEventListener('click', handleDocumentClick)
+})
+
+// 在组件卸载时移除点击事件监听
+onUnmounted(() => {
+  document.removeEventListener('click', handleDocumentClick)
+})
 </script>
 
 <style scoped>

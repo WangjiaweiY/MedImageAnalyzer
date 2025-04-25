@@ -38,6 +38,7 @@
         @thresholdAnalysis="thresholdAnalysis"
         @fullnetAnalysis="fullnetAnalysis"
         @resultFolderFullnet="resultFolderFullnet"
+        @autoDisplayImages="autoDisplayImages"
       />
 
       <!-- 图像查看器组件 -->
@@ -596,6 +597,37 @@ const resultFolderFullnet = (folderName) => {
   fullnetResultsVisible.value = true
   
   message.info(`正在查询文件夹【${folderName}】的Fullnet分析结果`)
+}
+
+// 一键展示图片
+const autoDisplayImages = (folderName, files) => {
+  console.log(`接收到一键展示请求: ${folderName}，文件数量: ${files.length}`)
+  
+  if (files.length === 0) {
+    message.warning('没有可展示的图片')
+    return
+  }
+  
+  // 根据当前布局选择要展示的图片数量
+  const currentLayout = layoutType.value
+  const maxImages = currentLayout // 布局模式与要展示的图片数量相同
+  
+  // 选取最多maxImages张图片
+  const imagesToDisplay = files.slice(0, maxImages)
+  
+  // 重置所有查看器
+  initViewers()
+  
+  // 为每个查看器加载图片
+  imagesToDisplay.forEach((file, index) => {
+    if (index < maxImages) {
+      const url = `/api/dzi/processed/${folderName}/${file.name}/`
+      // 使用viewerStore更新每个查看器
+      viewerStore.updateViewerAtIndex(index, url, file.name)
+    }
+  })
+  
+  message.success(`已自动展示${folderName}文件夹中的${imagesToDisplay.length}张图片`)
 }
 
 onMounted(() => {
