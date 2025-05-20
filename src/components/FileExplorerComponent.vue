@@ -44,12 +44,6 @@
               <div v-if="actionMenuVisible[item.folderName]" class="action-menu-dropdown">
                 <ul>
                   <li @click="handleFolderMenuAction(() => deleteFolder(item.folderName))">删除</li>
-                  <li @click="handleFolderMenuAction(() => resultFolderIHC(item.folderName))">
-                    查询免疫组化分析结果
-                  </li>
-                  <li @click="handleFolderMenuAction(() => resultFolderFullnet(item.folderName))">
-                    查询Fullnet分析结果
-                  </li>
                   <li @click="handleFolderMenuAction(() => autoDisplayImages(item.folderName))">
                     一键展示
                   </li>
@@ -76,18 +70,6 @@
               <div v-if="fileActionMenuVisible[item.folderName] && fileActionMenuVisible[item.folderName][subItem.name]" class="file-action-menu-dropdown">
                 <ul>
                   <li @click="handleFileMenuAction(item.folderName, subItem.name, () => deleteFile(item.folderName, subItem.name))">删除</li>
-                  <li @click="handleFileMenuAction(item.folderName, subItem.name, () => IHCanalysis(item.folderName, subItem.name))">
-                    免疫组化分析
-                  </li>
-                  <li @click="handleFileMenuAction(item.folderName, subItem.name, () => thresholdAnalysis(item.folderName, subItem.name))">
-                    阈值分析
-                  </li>
-                  <li @click="handleFileMenuAction(item.folderName, subItem.name, () => fullnetAnalysis(item.folderName, subItem.name))">
-                    Fullnet分析
-                  </li>
-                  <li @click="handleFileMenuAction(item.folderName, subItem.name, () => resultFileIHC(item.folderName, subItem.name))">
-                    查询分析结果
-                  </li>
                 </ul>
               </div>
             </div>
@@ -156,12 +138,6 @@ const emit = defineEmits([
   'selectDziItem',
   'deleteFolder',
   'deleteFile',
-  'IHCanalysis',
-  'resultFolderIHC',
-  'resultFileIHC',
-  'thresholdAnalysis',
-  'fullnetAnalysis',
-  'resultFolderFullnet',
   'autoDisplayImages'
 ])
 
@@ -211,69 +187,6 @@ const deleteFolder = (folderName) => {
 // 删除文件
 const deleteFile = (folderName, fileName) => {
   emit('deleteFile', folderName, fileName)
-}
-
-// 免疫组化分析
-const IHCanalysis = (folderName, fileName) => {
-  // 设置分析中状态
-  if (!analyzingFiles.value[folderName]) {
-    analyzingFiles.value[folderName] = {}
-  }
-  analyzingFiles.value[folderName][fileName] = true
-  
-  console.log(`开始分析: ${folderName}/${fileName}`)
-  emit('IHCanalysis', folderName, fileName)
-}
-
-// 阈值分析
-const thresholdAnalysis = (folderName, fileName) => {
-  console.log(`开始阈值分析: ${folderName}/${fileName}`)
-  emit('thresholdAnalysis', folderName, fileName)
-}
-
-// 查询文件夹分析结果
-const resultFolderIHC = (folderName) => {
-  // 设置加载状态
-  loadingResults.value[folderName] = true
-  
-  console.log(`查询文件夹分析结果: ${folderName}`)
-  emit('resultFolderIHC', folderName)
-  
-  // 自动清除加载状态
-  setTimeout(() => {
-    loadingResults.value[folderName] = false
-  }, 5000)
-}
-
-// 查询文件分析结果
-const resultFileIHC = (folderName, fileName) => {
-  // 设置加载状态
-  if (!loadingResults.value[folderName]) {
-    loadingResults.value[folderName] = {}
-  }
-  loadingResults.value[folderName][fileName] = true
-  
-  console.log(`查询文件分析结果: ${folderName}/${fileName}`)
-  emit('resultFileIHC', folderName, fileName)
-  
-  // 自动清除加载状态
-  setTimeout(() => {
-    if (loadingResults.value[folderName]) {
-      loadingResults.value[folderName][fileName] = false
-    }
-  }, 5000)
-}
-
-// Fullnet分析
-const fullnetAnalysis = (folderName, fileName) => {
-  console.log(`开始Fullnet分析: ${folderName}/${fileName}`)
-  emit('fullnetAnalysis', folderName, fileName)
-}
-
-// 查询Fullnet分析结果
-const resultFolderFullnet = (folderName) => {
-  console.log(`查询Fullnet分析结果: ${folderName}`)
-  emit('resultFolderFullnet', folderName)
 }
 
 // 一键展示功能

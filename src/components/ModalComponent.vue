@@ -199,24 +199,29 @@ const updateResultModalVisible = (value) => {
 
 // 导出分析结果
 const exportResult = () => {
-  // 如果结果是对象，则导出为JSON文件
-  if (props.resultModalContent && typeof props.resultModalContent === 'object') {
-    const dataStr = JSON.stringify(props.resultModalContent, null, 2)
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
+  if (!props.resultModalContent) {
+    message.warning('没有可导出的结果数据')
+    return
+  }
+  
+  try {
+    // 从标题中提取信息
+    const titleInfo = props.resultModalTitle || '分析结果'
+    let exportFileName = 'analysis_results'
     
-    // 从标题中提取文件名
-    let fileName = props.resultModalTitle.replace(/免疫组化分析结果 - (图片|文件夹)【(.+)】/, '$2')
-    fileName = `${fileName}_分析结果.json`
+    // 从标题中提取文件夹名或文件名
+    if (titleInfo.includes('【') && titleInfo.includes('】')) {
+      const nameMatch = titleInfo.match(/【(.+?)】/)
+      if (nameMatch && nameMatch[1]) {
+        exportFileName = nameMatch[1]
+      }
+    }
     
-    // 创建下载链接并触发下载
-    const linkElement = document.createElement('a')
-    linkElement.setAttribute('href', dataUri)
-    linkElement.setAttribute('download', fileName)
-    linkElement.click()
-    
-    message.success('结果已导出')
-  } else {
-    message.error('没有可导出的结果')
+    // 由于exportUtils已删除，显示暂不支持导出的消息
+    message.info('导出功能暂不可用，已移除相关功能')
+  } catch (error) {
+    console.error('导出结果失败:', error)
+    message.error(`导出失败: ${error.message}`)
   }
 }
 

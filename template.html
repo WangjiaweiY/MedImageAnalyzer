@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>医学图像分析器</title>
+  <style>
+    body {
+      font-family: 'Microsoft YaHei', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f7f9;
+      color: #333;
+    }
+    
+    .app-container {
+      display: flex;
+      height: 100vh;
+    }
+    
+    .sidebar {
+      width: 220px;
+      background-color: #001529;
+      color: #fff;
+      padding: 20px 10px;
+    }
+    
+    .logo {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #334154;
+      margin-bottom: 20px;
+    }
+    
+    .sidebar-menu {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .sidebar-menu li {
+      padding: 12px 15px;
+      margin-bottom: 5px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .sidebar-menu li.active {
+      background-color: #1890ff;
+    }
+    
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      background-color: #fff;
+      padding: 10px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .view-controls {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .layout-button {
+      padding: 6px 12px;
+      background-color: #f0f0f0;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .layout-button.active {
+      background-color: #1890ff;
+      color: white;
+      border-color: #1890ff;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      margin-left: 20px;
+    }
+    
+    .action-button {
+      padding: 6px 12px;
+      background-color: #1890ff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    .action-button.analysis {
+      background-color: #52c41a;
+    }
+    
+    .viewer-container {
+      flex: 1;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 20px;
+    }
+    
+    .viewer-item {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .viewer-item.active {
+      border: 3px solid #1890ff;
+    }
+    
+    .viewer-image {
+      width: 100%;
+      height: 100%;
+      background-color: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #999;
+    }
+    
+    .toolbox {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: flex;
+      flex-direction: column;
+      padding: 5px;
+    }
+    
+    .tool-button {
+      width: 32px;
+      height: 32px;
+      margin: 3px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .tool-button.active {
+      background-color: #1890ff;
+      color: white;
+    }
+    
+    .annotation-toggle {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #1890ff;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .file-selector {
+      padding: 15px;
+      background-color: white;
+      margin-top: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .file-list {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      margin-top: 15px;
+    }
+    
+    .file-item {
+      padding: 10px;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      text-align: center;
+      cursor: pointer;
+    }
+    
+    .file-item:hover {
+      border-color: #1890ff;
+      color: #1890ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+      <div class="logo">
+        <h2>多免疫组化病理图像智能分析系统</h2>
+      </div>
+      <ul class="sidebar-menu">
+        <li class="active">图像查看</li>
+        <li>病例管理</li>
+        <li>分析报告</li>
+        <li>系统设置</li>
+      </ul>
+    </div>
+    
+    <!-- 主内容区 -->
+    <div class="main-content">
+      <!-- 顶部控制栏 -->
+      <div class="header">
+        <h3>图像查看与标注</h3>
+        <div style="display: flex; align-items: center;">
+          <div class="view-controls">
+            <button class="layout-button">单视图</button>
+            <button class="layout-button active">2×2视图</button>
+            <button class="layout-button">3×3视图</button>
+            <button>同步视图</button>
+          </div>
+          <div class="action-buttons">
+            <button class="action-button">图像配准</button>
+            <button class="action-button analysis">图像分析</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 查看器容器 -->
+      <div class="viewer-container">
+        <!-- 查看器1 -->
+        <div class="viewer-item active">
+          <div class="viewer-image">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI1MCIgeT0iNTAiIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBzdHJva2U9IiMxMDkwZmYiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0ibm9uZSIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgcj0iMzAiIHN0cm9rZT0iI2ZmNDQ0NCIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+PC9zdmc+" alt="医学图像">
+          </div>
+          
+          <!-- 工具箱 -->
+          <div class="toolbox">
+            <div class="tool-button active">◎</div>
+            <div class="tool-button">□</div>
+            <div class="tool-button">○</div>
+            <div class="tool-button">✏️</div>
+            <div class="tool-button">⚪</div>
+            <div class="tool-button">➤</div>
+          </div>
+          
+          <!-- 标注模式切换按钮 -->
+          <div class="annotation-toggle">✎</div>
+        </div>
+        
+        <!-- 查看器2 -->
+        <div class="viewer-item">
+          <div class="viewer-image">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iNTAiIHkxPSI1MCIgeDI9IjE1MCIgeTI9IjE1MCIgc3Ryb2tlPSIjNjY2IiBzdHJva2Utd2lkdGg9IjEiLz48bGluZSB4MT0iNTAiIHkxPSIxNTAiIHgyPSIxNTAiIHkyPSI1MCIgc3Ryb2tlPSIjNjY2IiBzdHJva2Utd2lkdGg9IjEiLz48L3N2Zz4=" alt="医学图像">
+          </div>
+        </div>
+        
+        <!-- 查看器3 -->
+        <div class="viewer-item">
+          <div class="viewer-image">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZWxsaXBzZSBjeD0iMTAwIiBjeT0iMTAwIiByeD0iNzAiIHJ5PSI0MCIgc3Ryb2tlPSIjNjY2IiBzdHJva2Utd2lkdGg9IjEiIGZpbGw9Im5vbmUiLz48L3N2Zz4=" alt="医学图像">
+          </div>
+        </div>
+        
+        <!-- 查看器4 -->
+        <div class="viewer-item">
+          <div class="viewer-image">
+            <div style="text-align: center;">
+              请选择图像文件
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 文件选择器 -->
+      <div class="file-selector">
+        <h4>可用图像文件</h4>
+        <div class="file-list">
+          <div class="file-item">图像示例1</div>
+          <div class="file-item">图像示例2</div>
+          <div class="file-item">图像示例3</div>
+          <div class="file-item">图像示例4</div>
+          <div class="file-item">图像示例5</div>
+          <div class="file-item">图像示例6</div>
+          <div class="file-item">图像示例7</div>
+          <div class="file-item">图像示例8</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

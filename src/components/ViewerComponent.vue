@@ -1,16 +1,18 @@
 <template>
   <n-layout-content class="content">
-    <div class="viewer-container" :class="`layout-${layoutType}`">
+    <div class="viewer-container" :class="`layout-${layoutType}`" ref="viewerContainerRef">
       <div 
         v-for="(v, index) in layoutType" 
         :key="index"
         class="viewer-wrapper"
-        @mouseenter="handleMouseEnter(index, $event)"
-        @mousemove="handleMouseMove(index, $event)"
-        @mouseleave="handleMouseLeave(index)"
         @click="selectViewer(index)"
         :class="{ 'selected-viewer': selectedViewerIndex === index }"
       >
+        <!-- 添加图像标题栏 -->
+        <div class="image-title-bar">
+          <span class="image-title">{{ viewerFileNames[index] || '未加载图像' }}</span>
+        </div>
+        
         <div :id="`osdViewer-${index}`" class="osd-viewer"></div>
         <div v-if="!hasDzi(index)" class="placeholder">
           <n-empty size="large" description="请选择图像文件"></n-empty>
@@ -54,32 +56,45 @@
         </div>
       </div>
     </div>
-
-    <!-- 全局 tooltip，用于显示当前展示框加载的文件名称 -->
-    <div
-      v-if="tooltip.visible"
-      class="file-name-tooltip"
-      :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px' }"
-    >
-      {{ tooltip.text }}
+    
+    <!-- 保存视图按钮 -->
+    <div class="save-view-button" v-if="hasLoadedImages">
+      <n-tooltip placement="left">
+        <template #trigger>
+          <n-button 
+            circle 
+            type="success" 
+            @click="saveMultiView"
+          >
+            <template #icon>
+              <n-icon><camera-outlined /></n-icon>
+            </template>
+          </n-button>
+        </template>
+        <span>保存当前视图</span>
+      </n-tooltip>
     </div>
   </n-layout-content>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { 
   NLayoutContent, 
   NEmpty,
   NButton,
   NTooltip,
-  NIcon
+  NIcon,
+  useMessage
 } from 'naive-ui'
-import { EditOutlined } from '@vicons/antd'
+import { EditOutlined, CameraOutlined } from '@vicons/antd'
 import OpenSeadragon from 'openseadragon'
 import { throttle } from '../utils/throttle'
 import FabricCanvas from './FabricCanvas.vue'
 import ImageToolbox from './ImageToolbox.vue'
+
+const message = useMessage()
+const viewerContainerRef = ref(null)
 
 const props = defineProps({
   layoutType: {
@@ -112,20 +127,76 @@ const emit = defineEmits([
   'setupSync'
 ])
 
-// 全局 tooltip 数据
-const tooltip = ref({
-  visible: false,
-  x: 0,
-  y: 0,
-  text: ''
-})
-
 // 标注相关状态
 const annotationMode = ref(false);
 const currentTool = ref('select');
 const currentColor = ref('red');
 const annotationCanvasRefs = ref([]);
 const annotationData = ref([]);
+
+// 计算属性：检查是否有已加载的图像
+const hasLoadedImages = computed(() => {
+  return props.viewers.some(viewer => viewer !== null);
+});
+
+// 保存多视图为高清图片
+const saveMultiView = async () => {
+  if (!viewerContainerRef.value) return;
+  
+  // 显示加载中提示
+  message.loading('正在加载html2canvas并生成高清图片，请稍候...', { duration: 0 });
+  
+  try {
+    // 确保html2canvas已加载
+    const html2canvasModule = await import('html2canvas');
+    const html2canvas = html2canvasModule.default;
+    
+    // 给浏览器一些时间来更新UI
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // 使用html2canvas捕获当前视图
+    const canvas = await html2canvas(viewerContainerRef.value, {
+      scale: 2, // 提高分辨率，生成更高清的图片
+      useCORS: true, // 允许跨域图片
+      allowTaint: true, // 允许加载跨域图片
+      backgroundColor: '#f5f7f9', // 与背景颜色一致
+      logging: false // 关闭日志
+    });
+    
+    // 创建下载链接
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
+    const fileName = `多视图快照_${dateStr}_${timeStr}.png`;
+    
+    // 将canvas转换为Blob对象
+    canvas.toBlob((blob) => {
+      // 关闭加载提示
+      message.destroyAll();
+      
+      if (!blob) {
+        message.error('图像生成失败，请重试');
+        return;
+      }
+      
+      // 创建下载链接并模拟点击
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      
+      // 释放URL对象
+      URL.revokeObjectURL(link.href);
+      
+      message.success('多视图图片已保存');
+    }, 'image/png', 1.0);
+  } catch (error) {
+    console.error('保存多视图出错:', error);
+    message.error('保存失败，请重试');
+  } finally {
+    message.destroyAll();
+  }
+};
 
 // 切换标注模式
 const toggleAnnotationMode = () => {
@@ -176,23 +247,6 @@ const hasDzi = (index) => {
   return props.viewers[index] !== null
 }
 
-// 鼠标事件处理函数
-const handleMouseEnter = (index, event) => {
-  if (props.viewerFileNames[index]) {
-    tooltip.value.text = props.viewerFileNames[index]
-    tooltip.value.visible = true
-  }
-}
-
-const handleMouseMove = throttle((index, event) => {
-  tooltip.value.x = event.clientX + 10
-  tooltip.value.y = event.clientY + 10
-}, 30)
-
-const handleMouseLeave = (index) => {
-  tooltip.value.visible = false
-}
-
 // 选择查看器
 const selectViewer = (index) => {
   emit('update:selectedViewerIndex', index)
@@ -234,6 +288,7 @@ onMounted(() => {
   flex: 1;
   padding: 20px;
   background: #f5f7f9;
+  position: relative;
 }
 
 .viewer-container {
@@ -249,6 +304,8 @@ onMounted(() => {
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
 .selected-viewer {
@@ -256,7 +313,7 @@ onMounted(() => {
 }
 
 .placeholder {
-  height: 100%;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -265,7 +322,27 @@ onMounted(() => {
 
 .osd-viewer {
   width: 100%;
-  height: 100%;
+  flex: 1;
+}
+
+.image-title-bar {
+  background: #1890ff;
+  color: white;
+  padding: 4px 10px;
+  font-size: 12px;
+  text-align: left;
+  width: 100%;
+  height: 24px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+}
+
+.image-title {
+  font-weight: bold;
 }
 
 .layout-1 {
@@ -288,17 +365,6 @@ onMounted(() => {
   grid-template-rows: repeat(3, 1fr);
 }
 
-.file-name-tooltip {
-  position: fixed;
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  pointer-events: none;
-  z-index: 1000;
-}
-
 .annotation-toggle {
   position: absolute;
   bottom: 20px;
@@ -308,5 +374,12 @@ onMounted(() => {
 
 .annotation-enabled {
   pointer-events: auto;
+}
+
+.save-view-button {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 1000;
 }
 </style> 
