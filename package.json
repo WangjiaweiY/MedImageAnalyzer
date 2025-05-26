@@ -17,8 +17,10 @@
     "naive-ui": "^2.38.1",
     "openseadragon": "^5.0.1",
     "pinia": "^2.1.7",
+    "recordrtc": "^5.6.2",
     "viewerjs": "^1.11.6",
     "vue": "^3.4.15",
+    "vue-advanced-screen-recorder": "^1.0.4",
     "vue-router": "^4.2.5",
     "xlsx": "^0.18.5"
   },

@@ -18,6 +18,20 @@
         </template>
         一键展示图片
       </n-tooltip>
+      <n-tooltip trigger="hover" placement="bottom">
+        <template #trigger>
+          <n-button 
+            circle 
+            :type="isRecording ? 'error' : 'warning'" 
+            size="small" 
+            @click="toggleRecording" 
+            style="margin-left: 8px;"
+          >
+            <n-icon><VideoCameraOutlined /></n-icon>
+          </n-button>
+        </template>
+        {{ isRecording ? `停止录制 (${formatTime(recordingTime)})` : '开始录制' }}
+      </n-tooltip>
     </div>
     <n-list class="file-list" hoverable>
       <n-list-item 
@@ -97,8 +111,10 @@ import {
   DownOutlined, 
   UpOutlined, 
   EllipsisOutlined,
-  EyeOutlined
+  EyeOutlined,
+  VideoCameraOutlined
 } from '@vicons/antd'
+import RecordRTC from 'recordrtc'
 
 const props = defineProps({
   fileList: {
@@ -142,10 +158,97 @@ const emit = defineEmits([
 ])
 
 const message = useMessage()
+const isRecording = ref(false)
+const recordingTime = ref(0)
+let timer = null
+let recorder = null
 
 // 添加分析中状态管理
 const analyzingFiles = ref({})
 const loadingResults = ref({})
+
+const showScreenRecorder = ref(false)
+
+const startRecordingProcess = async () => {
+  try {
+    // 1. 拿屏幕视频流（只要 video，不要 audio）
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { width: 1920, height: 1080, frameRate: 30 }
+    })
+    // 2. 拿麦克风音频流
+    const micStream = await navigator.mediaDevices.getUserMedia({
+      audio: true
+    })
+    // 3. 合并轨道
+    const mixedStream = new MediaStream([
+      ...screenStream.getVideoTracks(),
+      ...micStream.getAudioTracks()
+    ])
+
+    // 4. 创建 RecordRTC
+    recorder = new RecordRTC(mixedStream, {
+      type: 'video',
+      mimeType: 'video/webm; codecs=vp8,opus',  // 用 WebM+VP8+Opus
+      // 下面这两个参数保证 1080p 下画面清晰
+      videoBitsPerSecond: 3_000_000,  // 3Mbps
+      audioBitsPerSecond: 128_000,    // 128kbps
+      frameRate: 30,
+      disableLogs: true
+    })
+
+    // 5. 开始录制
+    await recorder.startRecording()
+    isRecording.value = true
+    recordingTime.value = 0
+
+    // 计时器（可选）
+    timer = setInterval(() => {
+      recordingTime.value++
+    }, 1000)
+
+    message.success('✅ 录制已开始')
+
+    // 当用户主动停止屏幕分享时，也自动触发结束
+    screenStream.getVideoTracks()[0].onended = stopRecordingProcess
+
+  } catch (err) {
+    console.error(err)
+    message.error('无法开始录制: ' + err.message)
+  }
+}
+
+const stopRecordingProcess = () => {
+  if (!recorder) return;
+  // 停掉计时器
+  clearInterval(timer);
+  timer = null;
+
+  // 直接在 callback 里拿 Blob
+  recorder.stopRecording(() => {
+    const blob = recorder.getBlob();    // ← 这里才是真正的 Blob
+    downloadBlob(blob);
+    cleanup();
+  });
+};
+
+function downloadBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `recording-${new Date().toISOString()}.webm`;
+  a.click();
+  URL.revokeObjectURL(url);
+  message.success('✅ 录制完成，视频已下载');
+}
+
+function cleanup() {
+  isRecording.value = false;
+  recorder = null;
+}
+const toggleRecording = () => {
+  if (isRecording.value) stopRecordingProcess()
+  else startRecordingProcess()
+}
 
 // 刷新文件列表
 const fetchFileList = () => {
@@ -284,7 +387,16 @@ onMounted(() => {
 // 在组件卸载时移除点击事件监听
 onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick)
+  if (timer) {
+    clearInterval(timer)
+  }
 })
+
+const formatTime = (seconds) => {
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+}
 </script>
 
 <style scoped>

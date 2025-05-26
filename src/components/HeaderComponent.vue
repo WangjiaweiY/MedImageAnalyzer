@@ -142,6 +142,12 @@ const openRegistrationModal = () => {
 const handleFolderAndUpload = (event) => {
   emit('handleFolderAndUpload', event)
 }
+
+const showScreenRecorder = ref(false)
+
+const openScreenRecorder = () => {
+  showScreenRecorder.value = true
+}
 </script>
 
 <style scoped>
@@ -242,5 +248,9 @@ const handleFolderAndUpload = (event) => {
 
 .folder-upload-button {
   pointer-events: none;
+}
+
+.screen-recorder-button {
+  margin-right: 16px;
 }
 </style> 
