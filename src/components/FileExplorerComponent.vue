@@ -32,6 +32,20 @@
         </template>
         {{ isRecording ? `停止录制 (${formatTime(recordingTime)})` : '开始录制' }}
       </n-tooltip>
+      <n-tooltip trigger="hover" placement="bottom">
+        <template #trigger>
+          <n-button 
+            circle 
+            type="success" 
+            size="small" 
+            @click="saveMultiView"
+            style="margin-left: 8px;"
+          >
+            <n-icon><CameraOutlined /></n-icon>
+          </n-button>
+        </template>
+        保存当前视图
+      </n-tooltip>
     </div>
     <n-list class="file-list" hoverable>
       <n-list-item 
@@ -112,7 +126,8 @@ import {
   UpOutlined, 
   EllipsisOutlined,
   EyeOutlined,
-  VideoCameraOutlined
+  VideoCameraOutlined,
+  CameraOutlined
 } from '@vicons/antd'
 import RecordRTC from 'recordrtc'
 
@@ -397,6 +412,66 @@ const formatTime = (seconds) => {
   const remainingSeconds = seconds % 60
   return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
 }
+
+// 保存多视图为高清图片
+const saveMultiView = async () => {
+  const viewerContainer = document.querySelector('.viewer-container');
+  if (!viewerContainer) return;
+  
+  // 显示加载中提示
+  message.loading('正在加载html2canvas并生成高清图片，请稍候...', { duration: 0 });
+  
+  try {
+    // 确保html2canvas已加载
+    const html2canvasModule = await import('html2canvas');
+    const html2canvas = html2canvasModule.default;
+    
+    // 给浏览器一些时间来更新UI
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // 使用html2canvas捕获当前视图
+    const canvas = await html2canvas(viewerContainer, {
+      scale: 2, // 提高分辨率，生成更高清的图片
+      useCORS: true, // 允许跨域图片
+      allowTaint: true, // 允许加载跨域图片
+      backgroundColor: '#f5f7f9', // 与背景颜色一致
+      logging: false // 关闭日志
+    });
+    
+    // 创建下载链接
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
+    const fileName = `多视图快照_${dateStr}_${timeStr}.png`;
+    
+    // 将canvas转换为Blob对象
+    canvas.toBlob((blob) => {
+      // 关闭加载提示
+      message.destroyAll();
+      
+      if (!blob) {
+        message.error('图像生成失败，请重试');
+        return;
+      }
+      
+      // 创建下载链接并模拟点击
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      
+      // 释放URL对象
+      URL.revokeObjectURL(link.href);
+      
+      message.success('多视图图片已保存');
+    }, 'image/png', 1.0);
+  } catch (error) {
+    console.error('保存多视图出错:', error);
+    message.error('保存失败，请重试');
+  } finally {
+    message.destroyAll();
+  }
+};
 </script>
 
 <style scoped>

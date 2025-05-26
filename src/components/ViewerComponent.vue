@@ -56,24 +56,6 @@
         </div>
       </div>
     </div>
-    
-    <!-- 保存视图按钮 -->
-    <div class="save-view-button" v-if="hasLoadedImages">
-      <n-tooltip placement="left">
-        <template #trigger>
-          <n-button 
-            circle 
-            type="success" 
-            @click="saveMultiView"
-          >
-            <template #icon>
-              <n-icon><camera-outlined /></n-icon>
-            </template>
-          </n-button>
-        </template>
-        <span>保存当前视图</span>
-      </n-tooltip>
-    </div>
   </n-layout-content>
 </template>
 
@@ -374,12 +356,5 @@ onMounted(() => {
 
 .annotation-enabled {
   pointer-events: auto;
-}
-
-.save-view-button {
-  position: fixed;
-  bottom: 30px;
-  right: 30px;
-  z-index: 1000;
 }
 </style> 
