@@ -9,13 +9,15 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
   },
   "dependencies": {
+    "@adamjarling/openseadragon-fabricjs-overlay": "^0.3.2",
     "@css-render/vue3-ssr": "^0.15.12",
     "@vicons/antd": "^0.13.0",
     "axios": "^1.7.9",
-    "fabric": "^5.5.2",
+    "fabric": "^5.3.0",
     "html2canvas": "^1.4.1",
     "naive-ui": "^2.38.1",
     "openseadragon": "^5.0.1",
+    "openseadragon-fabricjs-overlay": "^0.2.4",
     "pinia": "^2.1.7",
     "recordrtc": "^5.6.2",
     "viewerjs": "^1.11.6",

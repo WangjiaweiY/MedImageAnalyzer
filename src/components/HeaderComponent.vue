@@ -13,10 +13,6 @@
             {{ num }}图模式
           </n-button>
         </n-button-group>
-        <!-- 同步按钮 -->
-        <n-button @click="toggleSync" :type="syncEnabled ? 'primary' : 'default'" class="sync-btn">
-          同步：{{ syncEnabled ? '开启' : '关闭' }}
-        </n-button>
         <!-- 配准按钮 -->
         <n-button @click="openRegistrationModal" type="primary" class="registration-btn">
           配准
@@ -78,10 +74,6 @@ const props = defineProps({
     type: Number,
     required: true
   },
-  syncEnabled: {
-    type: Boolean,
-    required: true
-  },
   statusBar: {
     type: Object,
     required: true
@@ -90,7 +82,6 @@ const props = defineProps({
 
 const emit = defineEmits([
   'update:layoutType', 
-  'update:syncEnabled', 
   'closeStatusBar', 
   'openRegistrationModal',
   'handleFolderAndUpload'
@@ -124,11 +115,6 @@ const handleUserAction = (key) => {
 
 const changeLayout = (num) => {
   emit('update:layoutType', num)
-}
-
-const toggleSync = () => {
-  emit('update:syncEnabled', !props.syncEnabled)
-  message.info(`图像同步已${!props.syncEnabled ? '开启' : '关闭'}`)
 }
 
 const closeStatusBar = () => {
@@ -176,10 +162,6 @@ const openScreenRecorder = () => {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.sync-btn {
-  margin-left: 20px;
 }
 
 .user-info {

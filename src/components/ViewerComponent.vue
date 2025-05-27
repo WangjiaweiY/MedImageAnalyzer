@@ -18,17 +18,18 @@
           <n-empty size="large" description="请选择图像文件"></n-empty>
         </div>
         
-        <!-- 添加标注画布组件 -->
-        <div v-if="hasDzi(index)" :class="{ 'annotation-enabled': annotationMode && selectedViewerIndex === index }">
-          <fabric-canvas
-            :ref="el => annotationCanvasRefs[index] = el"
-            :tool="currentTool"
-            :color="currentColor"
-            :annotation-enabled="annotationMode && selectedViewerIndex === index"
-            v-model:annotation-data="annotationData[index]"
-            @annotation-changed="handleAnnotationChanged(index)"
-          />
-        </div>
+        <!-- 使用新的FabricOverlayCanvas组件 -->
+        <fabric-overlay-canvas
+          v-if="hasDzi(index) && viewers[index]"
+          :ref="el => annotationCanvasRefs[index] = el"
+          :viewer="viewers[index]"
+          :tool="currentTool"
+          :color="currentColor"
+          :line-width="currentLineWidth"
+          :annotation-enabled="annotationMode && selectedViewerIndex === index"
+          v-model:annotation-data="annotationData[index]"
+          @annotation-changed="handleAnnotationChanged(index)"
+        />
         
         <!-- 添加工具箱，只在该查看器被选中且标注模式开启时显示 -->
         <image-toolbox
@@ -72,7 +73,7 @@ import {
 import { EditOutlined, CameraOutlined } from '@vicons/antd'
 import OpenSeadragon from 'openseadragon'
 import { throttle } from '../utils/throttle'
-import FabricCanvas from './FabricCanvas.vue'
+import FabricOverlayCanvas from './FabricOverlayCanvas.vue'
 import ImageToolbox from './ImageToolbox.vue'
 
 const message = useMessage()
@@ -82,10 +83,6 @@ const props = defineProps({
   layoutType: {
     type: Number,
     required: true
-  },
-  syncEnabled: {
-    type: Boolean,
-    default: true
   },
   selectedViewerIndex: {
     type: Number,
@@ -113,6 +110,7 @@ const emit = defineEmits([
 const annotationMode = ref(false);
 const currentTool = ref('select');
 const currentColor = ref('red');
+const currentLineWidth = ref(0.5);
 const annotationCanvasRefs = ref([]);
 const annotationData = ref([]);
 
@@ -184,30 +182,18 @@ const saveMultiView = async () => {
 const toggleAnnotationMode = () => {
   annotationMode.value = !annotationMode.value;
   
-  // 处理所有查看器的交互状态
-  if (annotationMode.value) {
-    // 开启标注模式：禁用所有查看器的交互
-    props.viewers.forEach((viewer, index) => {
-      if (viewer) {
-        viewer.setMouseNavEnabled(false);
-        viewer.gestureSettingsMouse.clickToZoom = false;
-      }
-    });
-  } else {
-    // 关闭标注模式：启用所有查看器的交互
-    props.viewers.forEach((viewer, index) => {
-      if (viewer) {
-        viewer.setMouseNavEnabled(true);
-        viewer.gestureSettingsMouse.clickToZoom = true;
-      }
-    });
-  }
+  // 标注模式状态由FabricOverlayCanvas组件自动处理
 };
 
 // 处理工具切换
 const handleToolChanged = (toolInfo) => {
   currentTool.value = toolInfo.tool;
   currentColor.value = toolInfo.color;
+  
+  // 处理线宽参数
+  if (toolInfo.lineWidth !== undefined) {
+    currentLineWidth.value = toolInfo.lineWidth;
+  }
 };
 
 // 清除标注
@@ -238,22 +224,6 @@ const selectViewer = (index) => {
 watch(() => props.layoutType, () => {
   emit('initViewers')
   annotationData.value = new Array(props.layoutType).fill('');
-})
-
-// 监听所选查看器变化
-watch(() => props.selectedViewerIndex, (newIndex, oldIndex) => {
-  // 如果启用了标注模式，根据所选查看器更新OSD的交互状态
-  if (annotationMode.value) {
-    if (oldIndex !== null && props.viewers[oldIndex]) {
-      props.viewers[oldIndex].setMouseNavEnabled(true);
-      props.viewers[oldIndex].gestureSettingsMouse.clickToZoom = true;
-    }
-    
-    if (newIndex !== null && props.viewers[newIndex]) {
-      props.viewers[newIndex].setMouseNavEnabled(false);
-      props.viewers[newIndex].gestureSettingsMouse.clickToZoom = false;
-    }
-  }
 })
 
 // 初始化
@@ -352,9 +322,5 @@ onMounted(() => {
   bottom: 20px;
   right: 20px;
   z-index: 101;
-}
-
-.annotation-enabled {
-  pointer-events: auto;
 }
 </style> 

@@ -6,9 +6,6 @@ export const useViewerStore = defineStore('viewer', {
     // 布局类型（1/2/4/9图模式）
     layoutType: 1,
     
-    // 同步功能开关
-    syncEnabled: true,
-    
     // 查看器实例数组
     viewers: [],
     
@@ -78,10 +75,8 @@ export const useViewerStore = defineStore('viewer', {
         fullscreen: false
       })
       
-      // 如果启用了同步，则设置同步处理
-      if (this.syncEnabled) {
-        this.setupSync()
-      }
+      // 默认启用同步
+      this.setupSync()
       
       return true
     },
@@ -128,10 +123,8 @@ export const useViewerStore = defineStore('viewer', {
         fullscreen: false
       })
       
-      // 如果启用了同步，则设置同步处理
-      if (this.syncEnabled) {
-        this.setupSync()
-      }
+      // 默认启用同步
+      this.setupSync()
       
       return true
     },
@@ -144,7 +137,7 @@ export const useViewerStore = defineStore('viewer', {
         if (viewer && !viewer._syncHandlersBound) {
           // 缩放同步
           viewer.addHandler('zoom', () => {
-            if (this.syncEnabled && !this.isSyncing) {
+            if (!this.isSyncing) {
               this.isSyncing = true
               const zoom = viewer.viewport.getZoom()
               this.viewers.forEach((v) => {
@@ -158,7 +151,7 @@ export const useViewerStore = defineStore('viewer', {
           
           // 平移同步
           viewer.addHandler('pan', () => {
-            if (this.syncEnabled && !this.isSyncing) {
+            if (!this.isSyncing) {
               this.isSyncing = true
               const center = viewer.viewport.getCenter()
               this.viewers.forEach((v) => {
@@ -174,16 +167,6 @@ export const useViewerStore = defineStore('viewer', {
           viewer._syncHandlersBound = true
         }
       })
-    },
-    
-    /**
-     * 切换同步功能
-     */
-    toggleSync() {
-      this.syncEnabled = !this.syncEnabled
-      if (this.syncEnabled) {
-        this.setupSync()
-      }
     },
     
     /**

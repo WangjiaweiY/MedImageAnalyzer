@@ -3,10 +3,8 @@
     <!-- 头部导航组件 -->
     <header-component
       :layout-type="layoutType"
-      :sync-enabled="syncEnabled"
       :status-bar="statusBar"
       @update:layout-type="changeLayout"
-      @update:sync-enabled="toggleSync"
       @close-status-bar="closeStatusBar"
       @open-registration-modal="openRegistrationModal"
       @handle-folder-and-upload="handleFolderAndUpload"
@@ -38,7 +36,6 @@
       <!-- 图像查看器组件 -->
       <viewer-component
         :layout-type="layoutType"
-        :sync-enabled="syncEnabled"
         :selected-viewer-index="selectedViewerIndex"
         :viewers="viewers"
         :viewer-file-names="viewerFileNames"
@@ -86,13 +83,11 @@ const viewerStore = useViewerStore()
 
 // 使用 viewerStore 中的状态和方法
 const layoutType = computed(() => viewerStore.layoutType)
-const syncEnabled = computed(() => viewerStore.syncEnabled)
 const viewers = computed(() => viewerStore.viewers)
 const selectedViewerIndex = computed(() => viewerStore.selectedViewerIndex)
 const viewerFileNames = computed(() => viewerStore.viewerFileNames)
 
 const changeLayout = (num) => viewerStore.changeLayout(num)
-const toggleSync = () => viewerStore.toggleSync()
 const initViewers = () => viewerStore.initViewers()
 const updateSelectedViewerIndex = (index) => {
   viewerStore.selectedViewerIndex = index
