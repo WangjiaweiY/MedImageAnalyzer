@@ -5,7 +5,7 @@
       <div class="controls">
         <n-button-group>
           <n-button 
-            v-for="num in [1, 2, 4, 9]" 
+            v-for="num in [1, 2, 4, 9, 16]" 
             :key="num"
             @click="changeLayout(num)"
             :type="layoutType === num ? 'primary' : 'default'"

@@ -3,7 +3,7 @@ import OpenSeadragon from 'openseadragon'
 
 export const useViewerStore = defineStore('viewer', {
   state: () => ({
-    // 布局类型（1/2/4/9图模式）
+    // 布局类型（1/2/4/9/16图模式）
     layoutType: 1,
     
     // 查看器实例数组
@@ -171,7 +171,7 @@ export const useViewerStore = defineStore('viewer', {
     
     /**
      * 切换布局模式
-     * @param {number} num - 布局类型（1/2/4/9）
+     * @param {number} num - 布局类型（1/2/4/9/16）
      */
     changeLayout(num) {
       this.layoutType = num

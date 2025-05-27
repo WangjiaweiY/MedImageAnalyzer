@@ -280,11 +280,11 @@ onMounted(() => {
 .image-title-bar {
   background: #1890ff;
   color: white;
-  padding: 4px 10px;
-  font-size: 12px;
+  padding: 2px 10px;
+  font-size: 11px;
   text-align: left;
   width: 100%;
-  height: 24px;
+  height: 18px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -315,6 +315,11 @@ onMounted(() => {
 .layout-9 {
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
+}
+
+.layout-16 {
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
 }
 
 .annotation-toggle {
