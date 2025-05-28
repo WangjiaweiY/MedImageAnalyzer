@@ -4,14 +4,16 @@
     <header-component
       :layout-type="layoutType"
       :status-bar="statusBar"
+      :is-header-collapsed="isHeaderCollapsed"
       @update:layout-type="changeLayout"
       @close-status-bar="closeStatusBar"
       @open-registration-modal="openRegistrationModal"
       @handle-folder-and-upload="handleFolderAndUpload"
+      @toggle-header="toggleHeader"
     />
 
     <!-- 主体区域：左侧为文件目录列表，右侧为图像展示区域 -->
-    <n-layout has-sider class="content-wrapper">
+    <n-layout has-sider class="content-wrapper" :class="{ 'expanded-content': isHeaderCollapsed }">
       <!-- 文件目录组件 -->
       <file-explorer-component
         :file-list="fileList"
@@ -44,6 +46,7 @@
         @init-viewers="initViewers"
         @update-viewer-dzi-url="updateViewerDziUrl"
         @setup-sync="setupSync"
+        @close-image="closeImage"
       />
     </n-layout>
 
@@ -87,6 +90,14 @@ const viewers = computed(() => viewerStore.viewers)
 const selectedViewerIndex = computed(() => viewerStore.selectedViewerIndex)
 const viewerFileNames = computed(() => viewerStore.viewerFileNames)
 
+// 导航栏折叠状态
+const isHeaderCollapsed = ref(false)
+
+// 切换导航栏显示/隐藏
+const toggleHeader = () => {
+  isHeaderCollapsed.value = !isHeaderCollapsed.value
+}
+
 const changeLayout = (num) => viewerStore.changeLayout(num)
 const initViewers = () => viewerStore.initViewers()
 const updateSelectedViewerIndex = (index) => {
@@ -96,6 +107,22 @@ const updateViewers = (newViewers) => {
   viewerStore.viewers = newViewers
 }
 const setupSync = () => viewerStore.setupSync()
+
+// 处理关闭图像
+const closeImage = (index) => {
+  // 检查方法是否存在，若不存在则使用回退逻辑
+  if (typeof viewerStore.clearViewerAtIndex === 'function') {
+    viewerStore.clearViewerAtIndex(index)
+  } else {
+    // 回退逻辑：手动清除查看器
+    if (viewerStore.viewers[index]) {
+      viewerStore.viewers[index].destroy()
+      viewerStore.viewers[index] = null
+      viewerStore.viewerFileNames[index] = ''
+    }
+  }
+  message.success(`已移除图像`)
+}
 
 // 文件目录相关状态
 const fileList = ref([])
@@ -381,8 +408,14 @@ onMounted(() => {
 
 .content-wrapper {
   flex: 1;
-  height: calc(100vh - 64px);
+  overflow: hidden;
+  transition: all 0.3s ease;
   display: flex;
+  height: calc(100vh - 64px);
+}
+
+.expanded-content {
+  height: calc(100vh - 10px);
 }
 </style>
   

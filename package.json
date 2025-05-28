@@ -6,6 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "electron:dev": "cross-env NODE_ENV=development electron electron-app/main.js",
+    "electron:build": "vite build && electron-builder",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
   },
   "dependencies": {

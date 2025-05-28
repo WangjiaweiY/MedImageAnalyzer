@@ -1,5 +1,5 @@
 <template>
-  <n-layout-header class="header">
+  <n-layout-header class="header" :class="{ 'header-collapsed': isHeaderCollapsed }">
     <div class="header-content">
       <div class="logo">多免疫组化病理图像智能分析系统</div>
       <div class="controls">
@@ -52,6 +52,13 @@
         </n-dropdown>
       </div>
     </div>
+    <!-- 隐藏/显示按钮 -->
+    <div class="toggle-header-btn" @click="toggleHeader">
+      <n-icon>
+        <DownOutlined v-if="isHeaderCollapsed" />
+        <UpOutlined v-else />
+      </n-icon>
+    </div>
   </n-layout-header>
 </template>
 
@@ -65,7 +72,7 @@ import {
   NDropdown,
   NIcon, 
 } from 'naive-ui'
-import { DownOutlined } from '@vicons/antd'
+import { DownOutlined, UpOutlined } from '@vicons/antd'
 import { useUserStore } from '@/stores/user'
 import { useMessage } from 'naive-ui'
 
@@ -77,6 +84,10 @@ const props = defineProps({
   statusBar: {
     type: Object,
     required: true
+  },
+  isHeaderCollapsed: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -84,7 +95,8 @@ const emit = defineEmits([
   'update:layoutType', 
   'closeStatusBar', 
   'openRegistrationModal',
-  'handleFolderAndUpload'
+  'handleFolderAndUpload',
+  'toggleHeader'
 ])
 
 const router = useRouter()
@@ -129,6 +141,10 @@ const handleFolderAndUpload = (event) => {
   emit('handleFolderAndUpload', event)
 }
 
+const toggleHeader = () => {
+  emit('toggleHeader')
+}
+
 const showScreenRecorder = ref(false)
 
 const openScreenRecorder = () => {
@@ -142,6 +158,17 @@ const openScreenRecorder = () => {
   padding: 0 24px;
   background: #1890ff;
   color: white;
+  position: relative;
+  transition: height 0.3s ease;
+}
+
+.header-collapsed {
+  height: 10px;
+  overflow: hidden;
+}
+
+.header-collapsed .header-content {
+  opacity: 0;
 }
 
 .header-content {
@@ -149,6 +176,7 @@ const openScreenRecorder = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  transition: opacity 0.2s ease;
 }
 
 .logo {
@@ -234,5 +262,26 @@ const openScreenRecorder = () => {
 
 .screen-recorder-button {
   margin-right: 16px;
+}
+
+.toggle-header-btn {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1890ff;
+  width: 30px;
+  height: 20px;
+  border-radius: 0 0 15px 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-header-btn:hover {
+  background: #40a9ff;
 }
 </style> 

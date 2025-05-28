@@ -13,6 +13,21 @@
           <span class="image-title">{{ viewerFileNames[index] || '未加载图像' }}</span>
         </div>
         
+        <!-- 关闭按钮 - 移至右上角，增加大小和可点击区域 -->
+        <div v-if="hasDzi(index)" class="close-image-wrapper" @click.stop="closeImage(index)">
+          <n-button 
+            class="close-image-btn" 
+            circle 
+            quaternary 
+            type="error" 
+            size="small"
+          >
+            <template #icon>
+              <n-icon><close-outlined /></n-icon>
+            </template>
+          </n-button>
+        </div>
+        
         <div :id="`osdViewer-${index}`" class="osd-viewer"></div>
         <div v-if="!hasDzi(index)" class="placeholder">
           <n-empty size="large" description="请选择图像文件"></n-empty>
@@ -70,7 +85,7 @@ import {
   NIcon,
   useMessage
 } from 'naive-ui'
-import { EditOutlined, CameraOutlined } from '@vicons/antd'
+import { EditOutlined, CameraOutlined, CloseOutlined } from '@vicons/antd'
 import OpenSeadragon from 'openseadragon'
 import { throttle } from '../utils/throttle'
 import FabricOverlayCanvas from './FabricOverlayCanvas.vue'
@@ -103,7 +118,8 @@ const emit = defineEmits([
   'update:viewers',
   'initViewers',
   'updateViewerDziUrl',
-  'setupSync'
+  'setupSync',
+  'closeImage'
 ])
 
 // 标注相关状态
@@ -113,6 +129,11 @@ const currentColor = ref('red');
 const currentLineWidth = ref(0.5);
 const annotationCanvasRefs = ref([]);
 const annotationData = ref([]);
+
+// 关闭图像
+const closeImage = (index) => {
+  emit('closeImage', index);
+}
 
 // 计算属性：检查是否有已加载的图像
 const hasLoadedImages = computed(() => {
@@ -291,10 +312,43 @@ onMounted(() => {
   z-index: 50;
   display: flex;
   align-items: center;
+  justify-content: space-between;
 }
 
 .image-title {
   font-weight: bold;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.close-image-btn {
+  height: 24px;
+  width: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-image-wrapper {
+  position: absolute;
+  top: 22px;
+  right: 10px;
+  z-index: 100;
+  cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.close-image-wrapper:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+  transform: scale(1.1);
 }
 
 .layout-1 {

@@ -134,6 +134,27 @@ export const useViewerStore = defineStore('viewer', {
     },
     
     /**
+     * 清除指定索引位置的查看器
+     * @param {number} index - 查看器索引
+     */
+    clearViewerAtIndex(index) {
+      // 检查索引是否有效
+      if (index < 0 || index >= this.viewers.length) {
+        console.error(`无效的查看器索引: ${index}`)
+        return false
+      }
+      
+      // 销毁现有查看器
+      if (this.viewers[index]) {
+        this.viewers[index].destroy()
+        this.viewers[index] = null
+        this.viewerFileNames[index] = ''
+      }
+      
+      return true
+    },
+    
+    /**
      * 设置查看器同步
      */
     setupSync() {
