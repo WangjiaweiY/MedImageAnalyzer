@@ -3,7 +3,7 @@ import OpenSeadragon from 'openseadragon'
 
 export const useViewerStore = defineStore('viewer', {
   state: () => ({
-    // 布局类型（1/2/4/9/16图模式）
+    // 布局类型（1/2/4/9/16图模式，以及101:左大右小，102:右大左小）
     layoutType: 1,
     
     // 查看器实例数组
@@ -30,7 +30,16 @@ export const useViewerStore = defineStore('viewer', {
       this.viewerFileNames = []
       
       // 根据布局创建新的查看器数组
-      for (let i = 0; i < this.layoutType; i++) {
+      let viewerCount = this.layoutType;
+      
+      // 对于特殊布局，设置合适的查看器数量
+      if (this.layoutType === 101) { // 左大右小模式
+        viewerCount = 5; // 1个大图 + 4个小图
+      } else if (this.layoutType === 102) { // 右大左小模式
+        viewerCount = 5; // 4个小图 + 1个大图
+      }
+      
+      for (let i = 0; i < viewerCount; i++) {
         this.viewers.push(null)
         this.viewerFileNames.push('')
       }
@@ -196,7 +205,7 @@ export const useViewerStore = defineStore('viewer', {
     
     /**
      * 切换布局模式
-     * @param {number} num - 布局类型（1/2/4/9/16）
+     * @param {number} num - 布局类型（1/2/4/9/16 或特殊布局 101/102）
      */
     changeLayout(num) {
       this.layoutType = num

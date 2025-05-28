@@ -1,12 +1,13 @@
 <template>
   <n-layout-content class="content">
-    <div class="viewer-container" :class="`layout-${layoutType}`" ref="viewerContainerRef">
+    <!-- 标准布局 -->
+    <div v-if="!isSpecialLayout" class="viewer-container" :class="getLayoutClass" ref="viewerContainerRef">
       <div 
-        v-for="(v, index) in layoutType" 
+        v-for="(v, index) in getViewerCount" 
         :key="index"
         class="viewer-wrapper"
+        :class="[getViewerClass(index), { 'selected-viewer': selectedViewerIndex === index }]"
         @click="selectViewer(index)"
-        :class="{ 'selected-viewer': selectedViewerIndex === index }"
       >
         <!-- 添加图像标题栏 -->
         <div class="image-title-bar">
@@ -65,6 +66,190 @@
                 <template #icon>
                   <n-icon><edit-outlined /></n-icon>
                 </template>
+              </n-button>
+            </template>
+            <span>{{ annotationMode ? '退出标注模式' : '进入标注模式' }}</span>
+          </n-tooltip>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 左大右小布局 -->
+    <div v-else-if="layoutType === 101" class="viewer-container layout-left-big-right-small" ref="viewerContainerRef">
+      <!-- 左侧大图 -->
+      <div 
+        class="viewer-wrapper big-viewer"
+        :class="{ 'selected-viewer': selectedViewerIndex === 0 }"
+        @click="selectViewer(0)"
+      >
+        <div class="image-title-bar">
+          <span class="image-title">{{ viewerFileNames[0] || '未加载图像' }}</span>
+        </div>
+        
+        <div v-if="hasDzi(0)" class="close-image-wrapper" @click.stop="closeImage(0)">
+          <n-button class="close-image-btn" circle quaternary type="error" size="small">
+            <template #icon><n-icon><close-outlined /></n-icon></template>
+          </n-button>
+        </div>
+        
+        <div id="osdViewer-0" class="osd-viewer"></div>
+        <div v-if="!hasDzi(0)" class="placeholder">
+          <n-empty size="large" description="请选择图像文件"></n-empty>
+        </div>
+        
+        <fabric-overlay-canvas
+          v-if="hasDzi(0) && viewers[0]"
+          :ref="el => annotationCanvasRefs[0] = el"
+          :viewer="viewers[0]"
+          :tool="currentTool"
+          :color="currentColor"
+          :line-width="currentLineWidth"
+          :annotation-enabled="annotationMode && selectedViewerIndex === 0"
+          v-model:annotation-data="annotationData[0]"
+          @annotation-changed="handleAnnotationChanged(0)"
+        />
+        
+        <image-toolbox
+          v-if="hasDzi(0) && selectedViewerIndex === 0 && annotationMode"
+          @tool-changed="handleToolChanged"
+          @clear-annotations="clearAnnotations(0)"
+        />
+        
+        <div v-if="hasDzi(0) && selectedViewerIndex === 0" class="annotation-toggle">
+          <n-tooltip placement="left">
+            <template #trigger>
+              <n-button circle :type="annotationMode ? 'primary' : 'default'" @click="toggleAnnotationMode">
+                <template #icon><n-icon><edit-outlined /></n-icon></template>
+              </n-button>
+            </template>
+            <span>{{ annotationMode ? '退出标注模式' : '进入标注模式' }}</span>
+          </n-tooltip>
+        </div>
+      </div>
+      
+      <!-- 右侧小图容器 -->
+      <div class="right-small-container">
+        <div 
+          v-for="index in 4" 
+          :key="index"
+          class="viewer-wrapper small-viewer"
+          :class="{ 'selected-viewer': selectedViewerIndex === index }"
+          @click="selectViewer(index)"
+        >
+          <div class="image-title-bar">
+            <span class="image-title">{{ viewerFileNames[index] || '未加载图像' }}</span>
+          </div>
+          
+          <div v-if="hasDzi(index)" class="close-image-wrapper" @click.stop="closeImage(index)">
+            <n-button class="close-image-btn" circle quaternary type="error" size="small">
+              <template #icon><n-icon><close-outlined /></n-icon></template>
+            </n-button>
+          </div>
+          
+          <div :id="`osdViewer-${index}`" class="osd-viewer"></div>
+          <div v-if="!hasDzi(index)" class="placeholder">
+            <n-empty size="small" description="请选择图像文件"></n-empty>
+          </div>
+          
+          <fabric-overlay-canvas
+            v-if="hasDzi(index) && viewers[index]"
+            :ref="el => annotationCanvasRefs[index] = el"
+            :viewer="viewers[index]"
+            :tool="currentTool"
+            :color="currentColor"
+            :line-width="currentLineWidth"
+            :annotation-enabled="annotationMode && selectedViewerIndex === index"
+            v-model:annotation-data="annotationData[index]"
+            @annotation-changed="handleAnnotationChanged(index)"
+          />
+        </div>
+      </div>
+    </div>
+    
+    <!-- 右大左小布局 -->
+    <div v-else-if="layoutType === 102" class="viewer-container layout-right-big-left-small" ref="viewerContainerRef">
+      <!-- 左侧小图容器 -->
+      <div class="left-small-container">
+        <div 
+          v-for="index in 4" 
+          :key="index - 1"
+          class="viewer-wrapper small-viewer"
+          :class="{ 'selected-viewer': selectedViewerIndex === index - 1 }"
+          @click="selectViewer(index - 1)"
+        >
+          <div class="image-title-bar">
+            <span class="image-title">{{ viewerFileNames[index - 1] || '未加载图像' }}</span>
+          </div>
+          
+          <div v-if="hasDzi(index - 1)" class="close-image-wrapper" @click.stop="closeImage(index - 1)">
+            <n-button class="close-image-btn" circle quaternary type="error" size="small">
+              <template #icon><n-icon><close-outlined /></n-icon></template>
+            </n-button>
+          </div>
+          
+          <div :id="`osdViewer-${index - 1}`" class="osd-viewer"></div>
+          <div v-if="!hasDzi(index - 1)" class="placeholder">
+            <n-empty size="small" description="请选择图像文件"></n-empty>
+          </div>
+          
+          <fabric-overlay-canvas
+            v-if="hasDzi(index - 1) && viewers[index - 1]"
+            :ref="el => annotationCanvasRefs[index - 1] = el"
+            :viewer="viewers[index - 1]"
+            :tool="currentTool"
+            :color="currentColor"
+            :line-width="currentLineWidth"
+            :annotation-enabled="annotationMode && selectedViewerIndex === index - 1"
+            v-model:annotation-data="annotationData[index - 1]"
+            @annotation-changed="handleAnnotationChanged(index - 1)"
+          />
+        </div>
+      </div>
+      
+      <!-- 右侧大图 -->
+      <div 
+        class="viewer-wrapper big-viewer"
+        :class="{ 'selected-viewer': selectedViewerIndex === 4 }"
+        @click="selectViewer(4)"
+      >
+        <div class="image-title-bar">
+          <span class="image-title">{{ viewerFileNames[4] || '未加载图像' }}</span>
+        </div>
+        
+        <div v-if="hasDzi(4)" class="close-image-wrapper" @click.stop="closeImage(4)">
+          <n-button class="close-image-btn" circle quaternary type="error" size="small">
+            <template #icon><n-icon><close-outlined /></n-icon></template>
+          </n-button>
+        </div>
+        
+        <div id="osdViewer-4" class="osd-viewer"></div>
+        <div v-if="!hasDzi(4)" class="placeholder">
+          <n-empty size="large" description="请选择图像文件"></n-empty>
+        </div>
+        
+        <fabric-overlay-canvas
+          v-if="hasDzi(4) && viewers[4]"
+          :ref="el => annotationCanvasRefs[4] = el"
+          :viewer="viewers[4]"
+          :tool="currentTool"
+          :color="currentColor"
+          :line-width="currentLineWidth"
+          :annotation-enabled="annotationMode && selectedViewerIndex === 4"
+          v-model:annotation-data="annotationData[4]"
+          @annotation-changed="handleAnnotationChanged(4)"
+        />
+        
+        <image-toolbox
+          v-if="hasDzi(4) && selectedViewerIndex === 4 && annotationMode"
+          @tool-changed="handleToolChanged"
+          @clear-annotations="clearAnnotations(4)"
+        />
+        
+        <div v-if="hasDzi(4) && selectedViewerIndex === 4" class="annotation-toggle">
+          <n-tooltip placement="left">
+            <template #trigger>
+              <n-button circle :type="annotationMode ? 'primary' : 'default'" @click="toggleAnnotationMode">
+                <template #icon><n-icon><edit-outlined /></n-icon></template>
               </n-button>
             </template>
             <span>{{ annotationMode ? '退出标注模式' : '进入标注模式' }}</span>
@@ -134,6 +319,41 @@ const annotationData = ref([]);
 const closeImage = (index) => {
   emit('closeImage', index);
 }
+
+// 获取布局类名
+const getLayoutClass = computed(() => {
+  if (props.layoutType === 101) {
+    return 'layout-left-big-right-small';
+  } else if (props.layoutType === 102) {
+    return 'layout-right-big-left-small';
+  } else {
+    return `layout-${props.layoutType}`;
+  }
+});
+
+// 检查是否使用特殊布局
+const isSpecialLayout = computed(() => {
+  return props.layoutType === 101 || props.layoutType === 102;
+});
+
+// 获取查看器数量
+const getViewerCount = computed(() => {
+  if (props.layoutType === 101 || props.layoutType === 102) {
+    return 5; // 这两种布局都有5个查看器
+  } else {
+    return props.layoutType;
+  }
+});
+
+// 获取查看器类名
+const getViewerClass = (index) => {
+  if (props.layoutType === 101) {
+    return index === 0 ? 'big-viewer' : 'small-viewer';
+  } else if (props.layoutType === 102) {
+    return index === 4 ? 'big-viewer' : 'small-viewer';
+  }
+  return '';
+};
 
 // 计算属性：检查是否有已加载的图像
 const hasLoadedImages = computed(() => {
@@ -351,6 +571,7 @@ onMounted(() => {
   transform: scale(1.1);
 }
 
+/* 标准布局样式 */
 .layout-1 {
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
@@ -376,10 +597,107 @@ onMounted(() => {
   grid-template-rows: repeat(4, 1fr);
 }
 
+/* 左大右小布局 */
+.layout-left-big-right-small {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr;
+  gap: 20px;
+  height: 100%;
+}
+
+.layout-left-big-right-small .big-viewer {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 100%;
+}
+
+.layout-left-big-right-small .small-viewer {
+  height: auto;
+}
+
+/* 右侧小图区域容器 */
+.layout-left-big-right-small .right-small-container {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 10px;
+  height: 100%;
+}
+
+/* 右大左小布局 */
+.layout-right-big-left-small {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  grid-template-rows: 1fr;
+  gap: 20px;
+  height: 100%;
+}
+
+.layout-right-big-left-small .big-viewer {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 100%;
+}
+
+.layout-right-big-left-small .small-viewer {
+  height: auto;
+}
+
+/* 左侧小图区域容器 */
+.layout-right-big-left-small .left-small-container {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 10px;
+  height: 100%;
+}
+
 .annotation-toggle {
   position: absolute;
   bottom: 20px;
   right: 20px;
   z-index: 101;
+}
+
+.small-viewer {
+  min-height: 120px;
+}
+
+.small-viewer .image-title-bar {
+  font-size: 10px;
+  height: 16px;
+  padding: 1px 8px;
+}
+
+.small-viewer .close-image-wrapper {
+  top: 18px;
+  right: 5px;
+}
+
+.small-viewer .close-image-btn {
+  height: 20px;
+  width: 20px;
+}
+
+.big-viewer {
+  height: 100%;
+}
+
+.right-small-container, .left-small-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 10px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.layout-left-big-right-small, .layout-right-big-left-small {
+  height: 100%;
 }
 </style> 

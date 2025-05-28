@@ -13,6 +13,23 @@
             {{ num }}图模式
           </n-button>
         </n-button-group>
+        <n-divider vertical />
+        <n-button-group>
+          <n-button 
+            @click="changeLayout(101)"
+            :type="layoutType === 101 ? 'primary' : 'default'"
+            title="左大右小"
+          >
+            左大右小
+          </n-button>
+          <n-button 
+            @click="changeLayout(102)"
+            :type="layoutType === 102 ? 'primary' : 'default'"
+            title="右大左小"
+          >
+            右大左小
+          </n-button>
+        </n-button-group>
         <!-- 配准按钮 -->
         <n-button @click="openRegistrationModal" type="primary" class="registration-btn">
           配准
@@ -71,6 +88,7 @@ import {
   NButtonGroup,
   NDropdown,
   NIcon, 
+  NDivider
 } from 'naive-ui'
 import { DownOutlined, UpOutlined } from '@vicons/antd'
 import { useUserStore } from '@/stores/user'
