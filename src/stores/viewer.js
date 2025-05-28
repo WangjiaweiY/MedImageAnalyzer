@@ -68,6 +68,8 @@ export const useViewerStore = defineStore('viewer', {
             Size: { Height: "32893", Width: "46000" }
           }
         },
+        // 索引小于7的使用WebGL，大于等于7的使用canvas
+        drawer: this.selectedViewerIndex < 7 ? 'webgl' : 'canvas',
         gestureSettingsMouse: {
           scrollToZoom: true
         },
@@ -116,6 +118,8 @@ export const useViewerStore = defineStore('viewer', {
             Size: { Height: "32893", Width: "46000" }
           }
         },
+        // 索引小于7的使用WebGL，大于等于7的使用canvas
+        drawer: index < 7 ? 'webgl' : 'canvas',
         gestureSettingsMouse: {
           scrollToZoom: true
         },
