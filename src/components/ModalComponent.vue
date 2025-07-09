@@ -222,6 +222,8 @@ import {
   NTabs,
   NTabPane
 } from 'naive-ui'
+import { useUserStore } from '@/stores/user'
+import { imageApi } from '@/services/api'
 
 const props = defineProps({
   registrationModalVisible: {
@@ -322,6 +324,7 @@ const startUploadFolder = async (index) => {
   if (!folder || folder.status !== 'uploading') return
   
   const formData = new FormData()
+  const userStore = useUserStore()
   
   // 计算总文件大小用于进度计算
   let totalSize = 0
@@ -363,6 +366,12 @@ const startUploadFolder = async (index) => {
       xhr.addEventListener('error', () => reject(new Error('上传失败')))
       
       xhr.open('POST', '/api/svs/upload')
+      
+      // 添加JWT认证头
+      if (userStore.token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${userStore.token}`)
+      }
+      
       xhr.send(formData)
     })
     

@@ -72,7 +72,7 @@ export const useViewerStore = defineStore('viewer', {
       // 创建新查看器
       this.viewers[this.selectedViewerIndex] = OpenSeadragon({
         id: `osdViewer-${this.selectedViewerIndex}`,
-        prefixUrl: 'http://localhost:8080/openseadragon-bin/images/',
+        prefixUrl: '/openseadragon-bin/images/',
         tileSources: {
           Image: {
             xmlns: "http://schemas.microsoft.com/deepzoom/2008",
@@ -149,7 +149,7 @@ export const useViewerStore = defineStore('viewer', {
       // 创建新查看器
       this.viewers[index] = OpenSeadragon({
         id: `osdViewer-${index}`,
-        prefixUrl: 'http://localhost:8080/openseadragon-bin/images/',
+        prefixUrl: '/openseadragon-bin/images/',
         tileSources: {
           Image: {
             xmlns: "http://schemas.microsoft.com/deepzoom/2008",
