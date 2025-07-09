@@ -87,7 +87,8 @@
         </div>
         <n-dropdown :options="userOptions" @select="handleUserAction">
           <n-button text class="user-welcome">
-            Welcome, {{ username }}
+            <n-icon class="user-icon"><UserOutlined /></n-icon>
+            {{ username }}
             <n-icon><DownOutlined /></n-icon>
           </n-button>
         </n-dropdown>
@@ -104,7 +105,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   NLayoutHeader, 
@@ -117,7 +118,7 @@ import {
   NTooltip,
   useMessage
 } from 'naive-ui'
-import { DownOutlined, UpOutlined, LeftOutlined, RightOutlined } from '@vicons/antd'
+import { DownOutlined, UpOutlined, LeftOutlined, RightOutlined, LogoutOutlined, UserOutlined } from '@vicons/antd'
 import { useUserStore } from '@/stores/user'
 import { useViewerStore } from '@/stores/viewer'
 
@@ -169,11 +170,6 @@ const prevPage = () => {
 // 用户下拉菜单选项
 const userOptions = [
   {
-    label: '个人设置',
-    key: 'settings',
-    icon: () => h(NIcon, null, { default: () => h(SettingOutlined) })
-  },
-  {
     label: '退出登录',
     key: 'logout',
     icon: () => h(NIcon, null, { default: () => h(LogoutOutlined) })
@@ -183,6 +179,8 @@ const userOptions = [
 // 处理用户菜单操作
 const handleUserAction = (key) => {
   if (key === 'logout') {
+    userStore.clearUserData()
+    message.success('已退出登录')
     router.push('/')
   }
 }
@@ -304,6 +302,17 @@ const openScreenRecorder = () => {
 
 .screen-recorder-button {
   margin-right: 16px;
+}
+
+.user-welcome {
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.user-icon {
+  margin-right: 2px;
 }
 
 .toggle-header-btn {
