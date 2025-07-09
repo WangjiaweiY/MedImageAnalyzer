@@ -18,6 +18,7 @@
         </template>
         一键展示图片
       </n-tooltip>
+      
       <n-tooltip trigger="hover" placement="bottom">
         <template #trigger>
           <n-button 
@@ -109,7 +110,7 @@
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits, onMounted, onUnmounted } from 'vue'
+import { ref, defineProps, defineEmits, onMounted, onUnmounted, computed } from 'vue'
 import { 
   NLayoutSider,
   NButton,
@@ -118,7 +119,8 @@ import {
   NListItem,
   useMessage,
   NSpin,
-  NTooltip
+  NTooltip,
+  NSpace
 } from 'naive-ui'
 import { 
   ReloadOutlined, 
@@ -127,8 +129,11 @@ import {
   EllipsisOutlined,
   EyeOutlined,
   VideoCameraOutlined,
-  CameraOutlined
+  CameraOutlined,
+  LeftOutlined,
+  RightOutlined
 } from '@vicons/antd'
+import { useViewerStore } from '../stores/viewer'
 import RecordRTC from 'recordrtc'
 
 const props = defineProps({
@@ -183,6 +188,11 @@ const analyzingFiles = ref({})
 const loadingResults = ref({})
 
 const showScreenRecorder = ref(false)
+
+// 获取 viewer store
+const viewerStore = useViewerStore()
+
+
 
 const startRecordingProcess = async () => {
   try {
@@ -627,6 +637,8 @@ const saveMultiView = async () => {
 .file-action-menu-dropdown li:hover {
   background-color: #f5f5f5;
 }
+
+
 
 .action-menu-dropdown li,
 .file-action-menu-dropdown li {

@@ -341,31 +341,23 @@ const autoDisplayImages = (folderName, files) => {
     return
   }
   
-  // 根据当前布局选择要展示的图片数量
-  const currentLayout = layoutType.value
-  const maxImages = currentLayout // 布局模式与要展示的图片数量相同
+  // 准备图像文件数组，包含URL和名称
+  const imageFiles = files.map(file => ({
+    url: `/api/dzi/processed/${folderName}/${file.name}/`,
+    name: file.name
+  }))
   
-  // 选取最多maxImages张图片
-  const imagesToDisplay = files.slice(0, maxImages)
+  // 设置所有可用的图像文件到store中
+  viewerStore.setAllImageFiles(imageFiles)
   
-  // 重置所有查看器
-  initViewers()
+  // 获取分页信息
+  const paginationInfo = viewerStore.getPaginationInfo()
   
-  // 为每个查看器加载图片
-  imagesToDisplay.forEach((file, index) => {
-    if (index < maxImages) {
-      const url = `/api/dzi/processed/${folderName}/${file.name}/`
-      // 使用viewerStore更新每个查看器
-      viewerStore.updateViewerAtIndex(index, url, file.name)
-    }
-  })
-  
-  message.success(`已自动展示${folderName}文件夹中的${imagesToDisplay.length}张图片`)
+  message.success(`已加载${folderName}文件夹中的${files.length}张图片，当前显示第1页，共${paginationInfo.totalPages}页`)
 }
 
 // 处理文件夹上传成功后的回调
 const handleFolderUploaded = (folderName) => {
-  message.success(`文件夹 ${folderName} 上传成功`)
   fetchFileList()
 }
 

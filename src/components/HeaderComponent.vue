@@ -34,6 +34,48 @@
         <n-button @click="openRegistrationModal" type="primary" class="registration-btn">
           配准
         </n-button>
+        
+        <!-- 分页控制按钮 -->
+        <n-space class="pagination-controls" style="margin-left: 10px;">
+          <n-tooltip trigger="hover" placement="bottom">
+            <template #trigger>
+              <n-button 
+                circle 
+                type="info" 
+                size="small" 
+                @click="prevPage"
+                :disabled="!paginationInfo.hasPrevPage"
+              >
+                <n-icon><LeftOutlined /></n-icon>
+              </n-button>
+            </template>
+            上一页
+          </n-tooltip>
+          
+          <n-tooltip trigger="hover" placement="bottom">
+            <template #trigger>
+              <div class="page-info">
+                {{ paginationInfo.currentPage }}/{{ paginationInfo.totalPages || 1 }}
+              </div>
+            </template>
+            第 {{ paginationInfo.currentPage }} 页，共 {{ paginationInfo.totalPages || 1 }} 页
+          </n-tooltip>
+          
+          <n-tooltip trigger="hover" placement="bottom">
+            <template #trigger>
+              <n-button 
+                circle 
+                type="info" 
+                size="small" 
+                @click="nextPage"
+                :disabled="!paginationInfo.hasNextPage"
+              >
+                <n-icon><RightOutlined /></n-icon>
+              </n-button>
+            </template>
+            下一页
+          </n-tooltip>
+        </n-space>
       </div>
 
       <div class="user-info">
@@ -70,11 +112,14 @@ import {
   NButtonGroup,
   NDropdown,
   NIcon, 
-  NDivider
+  NDivider,
+  NSpace,
+  NTooltip,
+  useMessage
 } from 'naive-ui'
-import { DownOutlined, UpOutlined } from '@vicons/antd'
+import { DownOutlined, UpOutlined, LeftOutlined, RightOutlined } from '@vicons/antd'
 import { useUserStore } from '@/stores/user'
-import { useMessage } from 'naive-ui'
+import { useViewerStore } from '@/stores/viewer'
 
 const props = defineProps({
   layoutType: {
@@ -98,7 +143,28 @@ const emit = defineEmits([
 const router = useRouter()
 const message = useMessage()
 const userStore = useUserStore()
+const viewerStore = useViewerStore()
 const username = computed(() => userStore.username || 'Guest')
+
+// 分页相关
+const paginationInfo = computed(() => {
+  return viewerStore.getPaginationInfo()
+})
+
+// 翻页方法
+const nextPage = () => {
+  if (paginationInfo.value.hasNextPage) {
+    viewerStore.nextPage()
+    message.success(`已切换到第 ${paginationInfo.value.currentPage} 页`)
+  }
+}
+
+const prevPage = () => {
+  if (paginationInfo.value.hasPrevPage) {
+    viewerStore.prevPage()
+    message.success(`已切换到第 ${paginationInfo.value.currentPage} 页`)
+  }
+}
 
 // 用户下拉菜单选项
 const userOptions = [
@@ -250,6 +316,25 @@ const openScreenRecorder = () => {
   height: 20px;
   border-radius: 0 0 15px 15px;
   display: flex;
+}
+
+.pagination-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.page-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 24px;
+  font-size: 12px;
+  color: white;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 0 8px;
   justify-content: center;
   align-items: center;
   cursor: pointer;

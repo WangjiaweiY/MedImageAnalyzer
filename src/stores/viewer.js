@@ -16,7 +16,13 @@ export const useViewerStore = defineStore('viewer', {
     viewerFileNames: [],
     
     // 是否正在同步缩放/平移
-    isSyncing: false
+    isSyncing: false,
+    
+    // 分页相关
+    currentPage: 1,
+    totalImages: 0,
+    currentDisplayedImages: [],
+    allImageFiles: []
   }),
   
   actions: {
@@ -281,6 +287,141 @@ export const useViewerStore = defineStore('viewer', {
       this.layoutType = num
       this.selectedViewerIndex = null
       this.initViewers()
+      
+      // 重置分页
+      this.currentPage = 1
+      
+      // 如果有已加载的图像文件，重新显示第一页
+      if (this.allImageFiles.length > 0) {
+        this.displayImagesByPage(1)
+      }
+    },
+    
+    /**
+     * 设置所有可用的图像文件
+     * @param {Array} files - 所有图像文件数组
+     */
+    setAllImageFiles(files) {
+      this.allImageFiles = files
+      this.totalImages = files.length
+      this.currentPage = 1
+      
+      // 自动显示第一页
+      if (files.length > 0) {
+        this.displayImagesByPage(1)
+      }
+    },
+    
+    /**
+     * 根据页码显示图像
+     * @param {number} page - 页码
+     */
+    displayImagesByPage(page) {
+      // 计算每页显示的图像数量（基于当前布局）
+      let imagesPerPage = this.layoutType
+      
+      // 特殊布局处理
+      if (this.layoutType === 101 || this.layoutType === 102) {
+        imagesPerPage = 5 // 左大右小或右大左小布局固定为5个查看器
+      }
+      
+      // 计算总页数
+      const totalPages = Math.ceil(this.allImageFiles.length / imagesPerPage)
+      
+      // 验证页码有效性
+      if (page < 1 || page > totalPages) {
+        console.error(`无效的页码: ${page}，有效范围: 1-${totalPages}`)
+        return false
+      }
+      
+      // 计算当前页的起始索引和结束索引
+      const startIndex = (page - 1) * imagesPerPage
+      const endIndex = Math.min(startIndex + imagesPerPage, this.allImageFiles.length)
+      
+      // 获取当前页的图像
+      const pageImages = this.allImageFiles.slice(startIndex, endIndex)
+      this.currentDisplayedImages = pageImages
+      
+      // 清除所有查看器
+      this.viewers.forEach((viewer, index) => {
+        if (viewer) {
+          viewer.destroy()
+          this.viewers[index] = null
+          this.viewerFileNames[index] = ''
+        }
+      })
+      
+      // 加载当前页的图像
+      pageImages.forEach((image, index) => {
+        this.updateViewerAtIndex(index, image.url, image.name)
+      })
+      
+      // 更新当前页码
+      this.currentPage = page
+      
+      return true
+    },
+    
+    /**
+     * 显示下一页图像
+     */
+    nextPage() {
+      // 计算每页显示的图像数量
+      let imagesPerPage = this.layoutType
+      
+      // 特殊布局处理
+      if (this.layoutType === 101 || this.layoutType === 102) {
+        imagesPerPage = 5
+      }
+      
+      // 计算总页数
+      const totalPages = Math.ceil(this.allImageFiles.length / imagesPerPage)
+      
+      // 如果当前已经是最后一页，则不执行操作
+      if (this.currentPage >= totalPages) {
+        return false
+      }
+      
+      // 显示下一页
+      return this.displayImagesByPage(this.currentPage + 1)
+    },
+    
+    /**
+     * 显示上一页图像
+     */
+    prevPage() {
+      // 如果当前已经是第一页，则不执行操作
+      if (this.currentPage <= 1) {
+        return false
+      }
+      
+      // 显示上一页
+      return this.displayImagesByPage(this.currentPage - 1)
+    },
+    
+    /**
+     * 获取分页信息
+     */
+    getPaginationInfo() {
+      // 计算每页显示的图像数量
+      let imagesPerPage = this.layoutType
+      
+      // 特殊布局处理
+      if (this.layoutType === 101 || this.layoutType === 102) {
+        imagesPerPage = 5
+      }
+      
+      // 计算总页数
+      const totalPages = Math.ceil(this.allImageFiles.length / imagesPerPage)
+      
+      return {
+        currentPage: this.currentPage,
+        totalPages,
+        totalImages: this.totalImages,
+        imagesPerPage,
+        hasNextPage: this.currentPage < totalPages,
+        hasPrevPage: this.currentPage > 1
+      }
     }
   }
-}) 
+})
