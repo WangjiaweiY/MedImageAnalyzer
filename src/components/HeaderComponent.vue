@@ -1,7 +1,7 @@
 <template>
   <n-layout-header class="header" :class="{ 'header-collapsed': isHeaderCollapsed }">
     <div class="header-content">
-      <div class="logo">多免疫组化病理图像智能分析系统</div>
+      <div class="logo">武汉协和医院病理阅片系统</div>
       <div class="controls">
         <n-button-group>
           <n-button 
@@ -36,30 +36,12 @@
         </n-button>
       </div>
 
-      <!-- 状态栏：显示上传或配准状态，只有 visible 为 true 时显示 -->
-      <div class="status-bar" v-if="statusBar.visible">
-        <span>
-          {{ statusBar.operation === 'ihc' ? '文件' : '文件夹' }}{{ statusBar.folder }}
-          {{
-            statusBar.operation === 'upload'
-              ? (statusBar.finished ? '上传完毕' : '正在上传中...')
-              : statusBar.operation === 'register'
-                ? (statusBar.finished ? '配准完毕' : '正在配准中...')
-                : (statusBar.finished ? '分析完毕' : '正在分析中...')
-          }}
-          ，已用时：{{ statusBar.elapsed }} 秒
-        </span>
-        <!-- 只有在 finished（成功或失败）后才显示关闭按钮 -->
-        <button v-if="statusBar.finished" @click="closeStatusBar" class="close-status-btn">×</button>
-      </div>
-
       <div class="user-info">
-        <!-- 上传文件夹 -->
+        <!-- 上传文件夹按钮 - 改为打开模态框 -->
         <div class="folder-upload">
-          <label class="folder-upload-label">
-            <input type="file" webkitdirectory multiple @change="handleFolderAndUpload" class="folder-input" />
-            <span class="folder-upload-button">上传</span>
-          </label>
+          <n-button type="primary" class="upload-btn" @click="openUploadModal">
+            上传
+          </n-button>
         </div>
         <n-dropdown :options="userOptions" @select="handleUserAction">
           <n-button text class="user-welcome">
@@ -99,10 +81,6 @@ const props = defineProps({
     type: Number,
     required: true
   },
-  statusBar: {
-    type: Object,
-    required: true
-  },
   isHeaderCollapsed: {
     type: Boolean,
     default: false
@@ -111,10 +89,10 @@ const props = defineProps({
 
 const emit = defineEmits([
   'update:layoutType', 
-  'closeStatusBar', 
   'openRegistrationModal',
   'handleFolderAndUpload',
-  'toggleHeader'
+  'toggleHeader',
+  'openUploadModal'
 ])
 
 const router = useRouter()
@@ -147,10 +125,6 @@ const changeLayout = (num) => {
   emit('update:layoutType', num)
 }
 
-const closeStatusBar = () => {
-  emit('closeStatusBar')
-}
-
 const openRegistrationModal = () => {
   emit('openRegistrationModal')
 }
@@ -161,6 +135,10 @@ const handleFolderAndUpload = (event) => {
 
 const toggleHeader = () => {
   emit('toggleHeader')
+}
+
+const openUploadModal = () => {
+  emit('openUploadModal')
 }
 
 const showScreenRecorder = ref(false)
@@ -214,26 +192,6 @@ const openScreenRecorder = () => {
   display: flex;
   align-items: center;
   gap: 20px;
-}
-
-.status-bar {
-  background: #fff;
-  color: #333;
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  margin-right: 280px;
-}
-
-.close-status-btn {
-  background: transparent;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
 }
 
 .folder-upload {

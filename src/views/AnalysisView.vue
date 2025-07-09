@@ -3,13 +3,12 @@
     <!-- 头部导航组件 -->
     <header-component
       :layout-type="layoutType"
-      :status-bar="statusBar"
       :is-header-collapsed="isHeaderCollapsed"
       @update:layout-type="changeLayout"
-      @close-status-bar="closeStatusBar"
       @open-registration-modal="openRegistrationModal"
       @handle-folder-and-upload="handleFolderAndUpload"
       @toggle-header="toggleHeader"
+      @open-upload-modal="openUploadModal"
     />
 
     <!-- 主体区域：左侧为文件目录列表，右侧为图像展示区域 -->
@@ -55,13 +54,23 @@
       :registration-modal-visible="registrationModalVisible"
       :registration-folder-list="registrationFolderList"
       :selected-registration-folder-value="selectedRegistrationFolder"
+      :upload-modal-visible="uploadModalVisible"
+      :upload-progress="uploadProgress"
+      :upload-in-progress="uploadInProgress"
+      :registration-progress="registrationProgress"
+      :registration-in-progress="registrationInProgress"
       :result-modal-visible="resultModalVisible"
       :result-modal-title="resultModalTitle"
       :result-modal-content="resultModalContent"
       @update:registration-modal-visible="updateRegistrationModalVisible"
       @update:selected-registration-folder-value="updateSelectedRegistrationFolder"
+      @update:upload-modal-visible="updateUploadModalVisible"
       @update:result-modal-visible="updateResultModalVisible"
       @start-registration="startRegistration"
+      @handle-file-selection="handleFileSelection"
+      @start-upload="startUpload"
+      @folder-uploaded="handleFolderUploaded"
+      ref="modalRef"
     />
   </n-layout>
 </template>
@@ -83,6 +92,7 @@ import ModalComponent from '@/components/ModalComponent.vue'
 const message = useMessage()
 const userStore = useUserStore()
 const viewerStore = useViewerStore()
+const modalRef = ref(null)
 
 // 使用 viewerStore 中的状态和方法
 const layoutType = computed(() => viewerStore.layoutType)
@@ -143,6 +153,14 @@ const updateFileActionMenuVisible = (value) => { fileActionMenuVisible.value = v
 const registrationModalVisible = ref(false)
 const registrationFolderList = ref([])
 const selectedRegistrationFolder = ref(null)
+const registrationProgress = ref(0)
+const registrationInProgress = ref(false)
+
+// 上传相关状态
+const uploadModalVisible = ref(false)
+const uploadProgress = ref(0)
+const uploadInProgress = ref(false)
+const selectedFolderFiles = ref([])
 
 // 结果显示相关状态
 const resultModalVisible = ref(false)
@@ -152,41 +170,8 @@ const resultModalContent = ref(null)
 // 模态框状态更新函数
 const updateRegistrationModalVisible = (value) => { registrationModalVisible.value = value }
 const updateSelectedRegistrationFolder = (value) => { selectedRegistrationFolder.value = value }
+const updateUploadModalVisible = (value) => { uploadModalVisible.value = value }
 const updateResultModalVisible = (value) => { resultModalVisible.value = value }
-
-// 状态栏相关状态，由上传和配准共用
-const statusBar = ref({
-  visible: false,
-  folder: "",
-  operation: "", // "upload" 或 "register"
-  message: "",
-  startTime: 0,
-  elapsed: 0,
-  finished: false,
-  error: false
-})
-let statusTimer = null
-
-// 状态栏相关函数
-const startStatusTimer = () => {
-  statusTimer = setInterval(() => {
-    statusBar.value.elapsed = Math.floor((Date.now() - statusBar.value.startTime) / 1000)
-  }, 1000)
-}
-
-const stopStatusTimer = () => {
-  if (statusTimer) {
-    clearInterval(statusTimer)
-    statusTimer = null
-  }
-}
-
-const closeStatusBar = () => {
-  statusBar.value.visible = false
-  statusBar.value.finished = false
-  statusBar.value.error = false
-  statusBar.value.elapsed = 0
-}
 
 // 文件列表操作
 const fetchFileList = async () => {
@@ -256,66 +241,36 @@ const deleteFile = async (folderName, fileName) => {
   }
 }
 
-// 文件夹上传处理
-const selectedFolderFiles = ref([])
-const handleFolderAndUpload = (event) => {
-  selectedFolderFiles.value = Array.from(event.target.files)
-  if (selectedFolderFiles.value.length > 0) {
-    message.success(`已选择 ${selectedFolderFiles.value.length} 个文件`)
-    uploadFolder()
-  }
+// 打开上传模态框
+const openUploadModal = () => {
+  uploadModalVisible.value = true;
+  uploadProgress.value = 0;
+  uploadInProgress.value = false;
+  selectedFolderFiles.value = [];
 }
 
-const uploadFolder = async () => {
-  if (selectedFolderFiles.value.length === 0) {
-    message.warning("请先选择一个文件夹")
-    return
+// 处理文件选择 - 模态框内部已经处理，这里只需要保留接口
+const handleFileSelection = (event) => {
+  // 文件选择已在模态框组件内处理
+  selectedFolderFiles.value = Array.from(event.target.files)
+}
+
+// 文件夹上传处理 - 适配旧的上传方式
+const handleFolderAndUpload = (event) => {
+  openUploadModal()
   }
   
-  // 从第一个文件中提取文件夹名称
-  let folderName = ""
-  const firstFilePath = selectedFolderFiles.value[0].webkitRelativePath
-  if (firstFilePath && firstFilePath.indexOf("/") !== -1) {
-    folderName = firstFilePath.substring(0, firstFilePath.indexOf("/"))
-  }
-  
-  // 初始化状态栏（上传）
-  statusBar.value = {
-    visible: true,
-    folder: folderName,
-    operation: "upload",
-    message: "正在上传中...",
-    startTime: Date.now(),
-    elapsed: 0,
-    finished: false,
-    error: false
-  }
-  startStatusTimer()
-  
-  const formData = new FormData()
-  selectedFolderFiles.value.forEach(file => {
-    formData.append('files', file, file.webkitRelativePath)
-  })
-  
-  try {
-    await fileApi.uploadFolder(formData)
-    statusBar.value.message = "上传完毕"
-    statusBar.value.finished = true
-    stopStatusTimer()
-    message.success("文件夹上传成功")
-  } catch (error) {
-    statusBar.value.message = "上传失败"
-    statusBar.value.finished = true
-    statusBar.value.error = true
-    stopStatusTimer()
-    message.error(error.message)
-  }
+// 开始上传 - 仅作为接口保留，实际上传逻辑已移至模态框内部
+const startUpload = (files) => {
+  // 上传逻辑已在模态框组件内处理
 }
 
 // 配准相关函数
 const openRegistrationModal = async () => {
   registrationModalVisible.value = true
   selectedRegistrationFolder.value = null
+  registrationProgress.value = 0
+  registrationInProgress.value = false
   
   try {
     const result = await imageApi.getRegistrationFolderList()
@@ -326,39 +281,54 @@ const openRegistrationModal = async () => {
   }
 }
 
-// 开始配准，调用后端接口启动配准流程
-const startRegistration = async () => {
-  if (!selectedRegistrationFolder.value) {
+// 开始配准，调用后端接口启动配准流程并监控进度
+const startRegistration = async (folderName) => {
+  if (!folderName) {
     message.warning("请选择一个文件夹")
     return
   }
   
-  // 初始化状态栏（配准）
-  statusBar.value = {
-    visible: true,
-    folder: selectedRegistrationFolder.value,
-    operation: "register",
-    message: "正在配准中...",
-    startTime: Date.now(),
-    elapsed: 0,
-    finished: false,
-    error: false
-  }
-  startStatusTimer()
-
   try {
-    await imageApi.startRegistration(selectedRegistrationFolder.value, userStore.username)
-    statusBar.value.message = "配准完毕"
-    statusBar.value.finished = true
-    stopStatusTimer()
-    message.success("图像配准成功")
-    registrationModalVisible.value = false
+    // 启动配准任务，获取任务ID
+    const response = await imageApi.startRegistration(folderName, userStore.username)
+    
+    // 模拟配准进度（实际项目中应该通过轮询API或WebSocket获取真实进度）
+    let currentProgress = 0
+    const interval = setInterval(() => {
+      // 更新进度
+      if (currentProgress < 95) {
+        currentProgress += Math.random() * 5 + 1
+        if (currentProgress > 95) currentProgress = 95
+        
+        // 通过ref访问模态框组件方法
+        if (modalRef.value) {
+          modalRef.value.updateRegistrationProgress(folderName, Math.floor(currentProgress))
+        }
+      } else {
+        clearInterval(interval)
+        
+        // 模拟最终完成
+        setTimeout(() => {
+          currentProgress = 100
+          
+          // 通过ref访问模态框组件方法
+          if (modalRef.value) {
+            modalRef.value.setRegistrationSuccess(folderName)
+          }
+          
+          message.success(`文件夹 ${folderName} 配准成功`)
+          fetchFileList()
+        }, 1000)
+      }
+    }, 500) // 每500ms更新一次进度
+    
   } catch (error) {
-    statusBar.value.message = "配准失败"
-    statusBar.value.finished = true
-    statusBar.value.error = true
-    stopStatusTimer()
-    message.error(error.message)
+    // 通过ref访问模态框组件方法
+    if (modalRef.value) {
+      modalRef.value.setRegistrationError(folderName)
+    }
+    
+    message.error(`配准失败: ${error.message}`)
   }
 }
 
@@ -391,6 +361,12 @@ const autoDisplayImages = (folderName, files) => {
   })
   
   message.success(`已自动展示${folderName}文件夹中的${imagesToDisplay.length}张图片`)
+}
+
+// 处理文件夹上传成功后的回调
+const handleFolderUploaded = (folderName) => {
+  message.success(`文件夹 ${folderName} 上传成功`)
+  fetchFileList()
 }
 
 onMounted(() => {
