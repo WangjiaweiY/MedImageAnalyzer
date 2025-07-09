@@ -2,8 +2,8 @@
   <div class="login-container">
     <div class="login-content">
       <div class="login-header">
-        <h1>西北大学智能信息处理实验室</h1>
-        <h2>医学影像病理分析系统</h2>
+        <h1>迪英加科技</h1>
+        <h2>武汉协和医院病理阅片系统</h2>
       </div>
       <n-card class="login-card">
         <n-form
@@ -75,7 +75,7 @@
         </template>
       </div>
       <div class="login-footer">
-        <p>Copyright © 2024 Northwest University. All Rights Reserved.</p>
+        <p>Copyright © 2025 DiPath. All Rights Reserved.</p>
       </div>
     </div>
   </div>

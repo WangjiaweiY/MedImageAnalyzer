@@ -523,10 +523,8 @@ const saveMultiView = async () => {
 }
 
 .action-menu-container {
-  position: absolute;
-  right: calc(100% + 15px);
-  top: 50%;
-  transform: translateY(-50%);
+  position: relative;
+  display: inline-block;
   z-index: 999;
 }
 

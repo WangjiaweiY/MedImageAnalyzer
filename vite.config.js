@@ -3,6 +3,15 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
+  base: './',
+  build: {
+    assetsDir: 'static',
+    rollupOptions: {
+      output: {
+        assetFileNames: 'static/[name].[hash][extname]',
+      }
+    }
+  },
   plugins: [
     vue(),
   ],
@@ -13,7 +22,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://127.0.0.1:8080', // 后端服务地址
+      '/api': {
+        target: 'http://127.0.0.1:8080', // 后端服务地址
+        changeOrigin: true,
+      }
     }
   }
 }) 
