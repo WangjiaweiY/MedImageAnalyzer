@@ -55,9 +55,14 @@
         :class="{ 'selected': selectedFolder === item.folderName }"
       >
         <div class="folder-item">
-          <span @click="toggleFolder(item.folderName)" class="folder-name">
+          <n-tooltip trigger="hover" placement="right">
+            <template #trigger>
+              <span @click="toggleFolder(item.folderName)" class="folder-name">
+                {{ item.folderName }}
+              </span>
+            </template>
             {{ item.folderName }}
-          </span>
+          </n-tooltip>
           <div class="toggle-actions">
             <n-button 
               size="small" 
@@ -88,9 +93,14 @@
             :key="subItem.name"
             class="dzi-item file-item"
           >
-            <span class="file-name" @click="selectDziItem(item.folderName, subItem)">
+            <n-tooltip trigger="hover" placement="right">
+              <template #trigger>
+                <span class="file-name" @click="selectDziItem(item.folderName, subItem)">
+                  {{ subItem.name }}
+                </span>
+              </template>
               {{ subItem.name }}
-            </span>
+            </n-tooltip>
             <!-- 文件操作菜单按钮 -->
             <div class="file-action-menu-container">
               <button class="file-action-menu-btn" @click.stop="toggleFileActionMenu(item.folderName, subItem.name)">
@@ -498,22 +508,32 @@ const saveMultiView = async () => {
 
 .file-list {
   padding: 12px;
+  width: 100%;
+  overflow: visible; /* 确保下拉菜单可见 */
 }
 
 .folder-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
+  overflow: visible; /* 改为visible，确保下拉菜单可见 */
+  position: relative; /* 添加相对定位，为绝对定位的子元素提供参考 */
 }
 
 .folder-name {
   cursor: pointer;
   font-weight: bold;
+  max-width: 170px; /* 减小宽度，避免与操作按钮重叠 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
 }
 
 .dzi-file-list {
   margin-top: 8px;
-  padding-left: 16px;
+  padding-left: 0px;
 }
 
 .dzi-item {
@@ -528,8 +548,10 @@ const saveMultiView = async () => {
 
 .toggle-actions {
   position: relative;
-  display: inline-block;
-  margin-left: 8px;
+  display: inline-flex;
+  margin-left: 10px;
+  min-width: 60px; /* 确保操作按钮区域有足够的宽度 */
+  justify-content: flex-end; /* 按钮靠右对齐 */
 }
 
 .action-menu-container {
@@ -552,14 +574,15 @@ const saveMultiView = async () => {
 
 .action-menu-dropdown {
   position: absolute;
-  top: 100%;
-  right: 0;
+  top: 0; /* 改为顶部对齐 */
+  right: 100%; /* 改为右侧对齐，显示在按钮左侧 */
   background: white;
   border: 1px solid #ddd;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  z-index: 10;
+  z-index: 1000; /* 增加z-index，确保在最上层 */
   min-width: 80px;
+  margin-right: 5px; /* 与按钮保持一定距离 */
 }
 
 .action-menu-dropdown ul {
@@ -581,14 +604,19 @@ const saveMultiView = async () => {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
+  overflow: visible; /* 改为visible，确保下拉菜单可见 */
 }
 
 .file-name {
   flex: 1;
-  padding-right: 30px;
+  padding-right: 40px; /* 增加右侧内边距，为操作按钮留出更多空间 */
+  padding-left: 16px; /* 添加缩进效果 */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 150px; /* 减小宽度，避免与操作按钮重叠 */
+  display: inline-block;
 }
 
 .file-action-menu-container {
@@ -597,6 +625,8 @@ const saveMultiView = async () => {
   top: 50%;
   transform: translateY(-50%);
   z-index: 999;
+  min-width: 24px; /* 确保菜单按钮始终可见 */
+  margin-left: 8px; /* 与文件名保持一定距离 */
 }
 
 .file-action-menu-btn {
@@ -613,14 +643,15 @@ const saveMultiView = async () => {
 
 .file-action-menu-dropdown {
   position: absolute;
-  top: 100%;
-  right: 0;
+  top: 0; /* 改为顶部对齐 */
+  right: 100%; /* 改为右侧对齐，显示在按钮左侧 */
   background: white;
   border: 1px solid #ddd;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  z-index: 10;
+  z-index: 1000; /* 增加z-index，确保在最上层 */
   min-width: 80px;
+  margin-right: 5px; /* 与按钮保持一定距离 */
 }
 
 .file-action-menu-dropdown ul {
