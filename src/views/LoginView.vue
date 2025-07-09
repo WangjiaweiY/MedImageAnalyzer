@@ -88,6 +88,7 @@ import { useMessage } from 'naive-ui'
 import { NCard, NForm, NFormItem, NInput, NButton, NIcon } from 'naive-ui'
 import { UserOutlined, LockOutlined } from '@vicons/antd'
 import { useUserStore } from '@/stores/user'
+import { authApi } from '@/services/api'
 
 const router = useRouter()
 const message = useMessage()
@@ -152,65 +153,45 @@ const handleSubmit = async () => {
       loading.value = true
       try {
         if (mode.value === 'login') {
-          // 登录接口请求
-          const response = await fetch('/api/user/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+          // 使用API服务登录
+          const result = await authApi.login(formValue.username, formValue.password);
+          
+          if (result.token) {
+            // 登录成功，保存用户信息和token
+            userStore.setUserData({
               username: formValue.username,
-              password: formValue.password
-            })
-          })
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
-          }
-          if (response.status === 200) {
-            message.success('登录成功')
-            userStore.setUsername(formValue.username)
-            localStorage.setItem('isLoggedIn', 'true')
-            router.push('/analysis')
+              token: result.token
+            });
+            
+            message.success('登录成功');
+            router.push('/analysis');
           } else {
-            const data = await response.json()
-            message.error(data.msg || '登录失败')
+            message.error(result.message || '登录失败');
           }
         } else {
-          // 注册接口请求
-          const response = await fetch('/api/user/register', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              username: formValue.username,
-              password: formValue.password
-            })
-          })
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
-          }
-          if (response.status === 200) {
-            message.success('注册成功')
-            // 注册成功后可自动切换到登录模式
-            mode.value = 'login'
-            formValue.username = ''
-            formValue.password = ''
-            formValue.confirmPassword = ''
+          // 使用API服务注册
+          const result = await authApi.register(formValue.username, formValue.password);
+          
+          if (result.success) {
+            message.success('注册成功');
+            // 注册成功后自动切换到登录模式
+            mode.value = 'login';
+            formValue.username = '';
+            formValue.password = '';
+            formValue.confirmPassword = '';
           } else {
-            const data = await response.json()
-            message.error(data.msg || '注册失败')
+            message.error(result.message || '注册失败');
           }
         }
       } catch (error) {
-        console.error(`${mode.value === 'login' ? '登录' : '注册'}请求失败:`, error)
-        message.error(`${mode.value === 'login' ? '登录' : '注册'}失败，请稍后重试`)
+        console.error(`${mode.value === 'login' ? '登录' : '注册'}请求失败:`, error);
+        message.error(error.message || `${mode.value === 'login' ? '登录' : '注册'}失败，请稍后重试`);
       } finally {
-        loading.value = false
+        loading.value = false;
       }
     }
-  })
-}
+  });
+};
 </script>
 
 <style scoped>
