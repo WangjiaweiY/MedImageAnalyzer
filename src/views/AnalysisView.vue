@@ -353,7 +353,6 @@ const autoDisplayImages = (folderName, files) => {
   // 获取分页信息
   const paginationInfo = viewerStore.getPaginationInfo()
   
-  message.success(`已加载${folderName}文件夹中的${files.length}张图片，当前显示第1页，共${paginationInfo.totalPages}页`)
 }
 
 // 处理文件夹上传成功后的回调
