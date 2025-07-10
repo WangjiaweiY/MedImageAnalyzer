@@ -43,6 +43,7 @@
           :color="currentColor"
           :line-width="currentLineWidth"
           :annotation-enabled="annotationMode && selectedViewerIndex === index"
+          :is-sync-annotation="isSyncAnnotation"
           v-model:annotation-data="annotationData[index]"
           @annotation-changed="handleAnnotationChanged(index)"
         />
@@ -105,6 +106,7 @@
           :color="currentColor"
           :line-width="currentLineWidth"
           :annotation-enabled="annotationMode && selectedViewerIndex === 0"
+          :is-sync-annotation="props.isSyncAnnotation"
           v-model:annotation-data="annotationData[0]"
           @annotation-changed="handleAnnotationChanged(0)"
         />
@@ -158,9 +160,10 @@
             :tool="currentTool"
             :color="currentColor"
             :line-width="currentLineWidth"
-            :annotation-enabled="annotationMode && selectedViewerIndex === index"
-            v-model:annotation-data="annotationData[index]"
-            @annotation-changed="handleAnnotationChanged(index)"
+                      :annotation-enabled="annotationMode && selectedViewerIndex === index"
+          :is-sync-annotation="props.isSyncAnnotation"
+          v-model:annotation-data="annotationData[index]"
+          @annotation-changed="handleAnnotationChanged(index)"
           />
         </div>
       </div>
@@ -199,9 +202,10 @@
             :tool="currentTool"
             :color="currentColor"
             :line-width="currentLineWidth"
-            :annotation-enabled="annotationMode && selectedViewerIndex === index - 1"
-            v-model:annotation-data="annotationData[index - 1]"
-            @annotation-changed="handleAnnotationChanged(index - 1)"
+                      :annotation-enabled="annotationMode && selectedViewerIndex === index - 1"
+          :is-sync-annotation="props.isSyncAnnotation"
+          v-model:annotation-data="annotationData[index - 1]"
+          @annotation-changed="handleAnnotationChanged(index - 1)"
           />
         </div>
       </div>
@@ -235,6 +239,7 @@
           :color="currentColor"
           :line-width="currentLineWidth"
           :annotation-enabled="annotationMode && selectedViewerIndex === 4"
+          :is-sync-annotation="props.isSyncAnnotation"
           v-model:annotation-data="annotationData[4]"
           @annotation-changed="handleAnnotationChanged(4)"
         />
@@ -278,6 +283,7 @@ import ImageToolbox from './ImageToolbox.vue'
 
 const message = useMessage()
 const viewerContainerRef = ref(null)
+// 注: 标注同步开关状态通过props传入
 
 const props = defineProps({
   layoutType: {
@@ -295,6 +301,10 @@ const props = defineProps({
   viewerFileNames: {
     type: Array,
     required: true
+  },
+  isSyncAnnotation: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -304,7 +314,8 @@ const emit = defineEmits([
   'initViewers',
   'updateViewerDziUrl',
   'setupSync',
-  'closeImage'
+  'closeImage',
+  'update:isSyncAnnotation'
 ])
 
 // 标注相关状态
@@ -449,6 +460,23 @@ const clearAnnotations = (index) => {
 const handleAnnotationChanged = (index) => {
   // 可以在这里添加保存标注数据的逻辑
   console.log(`标注已更改: 查看器 ${index}`);
+  
+  // 只有在使用自由绘制工具时才同步标注到其他查看器
+  if (props.isSyncAnnotation && currentTool.value === 'draw') {
+    syncAnnotationToOtherViewers(index);
+  }
+};
+
+// 同步标注到其他查看器
+const syncAnnotationToOtherViewers = (sourceIndex) => {
+  if (!annotationData.value[sourceIndex]) return;
+  
+  // 将标注数据同步到其他已加载图像的查看器
+  props.viewers.forEach((viewer, targetIndex) => {
+    if (targetIndex !== sourceIndex && viewer !== null) {
+      annotationData.value[targetIndex] = annotationData.value[sourceIndex];
+    }
+  });
 };
 
 // 检查某个索引的查看器是否有加载的图像

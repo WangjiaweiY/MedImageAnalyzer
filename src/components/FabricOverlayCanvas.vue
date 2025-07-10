@@ -39,6 +39,11 @@ const props = defineProps({
   annotationData: {
     type: String,
     default: ''
+  },
+  // 是否启用标注同步
+  isSyncAnnotation: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -50,6 +55,8 @@ let fabricCanvas = null;
 let isDrawing = false;
 let currentObject = null;
 let drawingStartPoint = { x: 0, y: 0 };
+// 新增标识属性，用于记录是否是在同步状态下创建的标注
+const SYNC_ATTRIBUTE = 'createdWithSyncEnabled';
 
 // 初始化Fabric.js overlay
 const initOverlay = () => {
@@ -259,6 +266,15 @@ const onMouseDown = (options) => {
       
       // 应用调整后的线宽
       fabricCanvas.freeDrawingBrush.width = adjustedLineWidth;
+      
+      // 移除旧的路径创建监听器，避免重复
+      fabricCanvas.off('path:created');
+      
+      // 添加事件监听，记录绘制的路径是否是在同步状态下创建的
+      fabricCanvas.on('path:created', function(e) {
+        // 将当前的同步状态记录在绘制对象上
+        e.path.set(SYNC_ATTRIBUTE, props.isSyncAnnotation);
+      });
       break;
   }
   
@@ -332,7 +348,8 @@ const onMouseUp = (options) => {
 const saveAnnotationData = () => {
   if (!fabricCanvas) return;
   
-  const json = fabricCanvas.toJSON();
+  // 将同步属性一并保存到JSON中
+  const json = fabricCanvas.toJSON(['selectable', 'hasControls', SYNC_ATTRIBUTE]);
   const jsonString = JSON.stringify(json);
   
   emit('update:annotation-data', jsonString);
@@ -404,13 +421,48 @@ watch(() => props.annotationEnabled, () => {
   updateInteractionMode();
 });
 
-watch(() => props.annotationData, (newData) => {
+watch(() => props.annotationData, (newData, oldData) => {
   if (!fabricCanvas || !newData) return;
   
   try {
-    fabricCanvas.loadFromJSON(newData, () => {
-      fabricCanvas.renderAll();
-    });
+    const parsedData = JSON.parse(newData);
+    const oldParsedData = oldData ? JSON.parse(oldData) : null;
+    
+    // 如果是从其他查看器同步来的数据
+    if (oldParsedData && parsedData.objects && oldParsedData.objects && 
+        parsedData.objects.length !== oldParsedData.objects.length) {
+      
+      // 加载前先保存非同步的对象
+      const nonSyncObjects = [];
+      fabricCanvas.getObjects().forEach(obj => {
+        // 如果对象不是在同步状态下创建，或不是自由绘制的路径对象，则保留
+        if (obj.type === 'text' || obj[SYNC_ATTRIBUTE] !== true) {
+          nonSyncObjects.push(obj);
+        }
+      });
+      
+      // 加载新数据
+      fabricCanvas.loadFromJSON(newData, () => {
+        // 从新加载的画布中移除所有非同步对象
+        fabricCanvas.getObjects().forEach(obj => {
+          if ((obj.type !== 'path' || obj[SYNC_ATTRIBUTE] !== true)) {
+            fabricCanvas.remove(obj);
+          }
+        });
+        
+        // 重新添加之前保存的非同步对象
+        nonSyncObjects.forEach(obj => {
+          fabricCanvas.add(obj);
+        });
+        
+        fabricCanvas.renderAll();
+      });
+    } else {
+      // 正常加载数据
+      fabricCanvas.loadFromJSON(newData, () => {
+        fabricCanvas.renderAll();
+      });
+    }
   } catch (error) {
     console.error('Error loading annotation data:', error);
   }

@@ -4,7 +4,9 @@
     <header-component
       :layout-type="layoutType"
       :is-header-collapsed="isHeaderCollapsed"
+      :is-sync-annotation="isSyncAnnotation"
       @update:layout-type="changeLayout"
+      @update:is-sync-annotation="updateIsSyncAnnotation"
       @open-registration-modal="openRegistrationModal"
       @handle-folder-and-upload="handleFolderAndUpload"
       @toggle-header="toggleHeader"
@@ -40,8 +42,10 @@
         :selected-viewer-index="selectedViewerIndex"
         :viewers="viewers"
         :viewer-file-names="viewerFileNames"
+        :is-sync-annotation="isSyncAnnotation"
         @update:selected-viewer-index="updateSelectedViewerIndex"
         @update:viewers="updateViewers"
+        @update:is-sync-annotation="updateIsSyncAnnotation"
         @init-viewers="initViewers"
         @update-viewer-dzi-url="updateViewerDziUrl"
         @setup-sync="setupSync"
@@ -93,6 +97,12 @@ const message = useMessage()
 const userStore = useUserStore()
 const viewerStore = useViewerStore()
 const modalRef = ref(null)
+
+// 标注同步状态
+const isSyncAnnotation = ref(false)
+const updateIsSyncAnnotation = (value) => {
+  isSyncAnnotation.value = value
+}
 
 // 使用 viewerStore 中的状态和方法
 const layoutType = computed(() => viewerStore.layoutType)

@@ -30,13 +30,25 @@
             右大左小
           </n-button>
         </n-button-group>
-        
-
-        
         <!-- 配准按钮 -->
         <n-button @click="openRegistrationModal" type="primary" class="registration-btn">
           配准
         </n-button>
+        
+        <!-- 添加标注同步开关按钮 -->
+        <n-tooltip trigger="hover" placement="bottom">
+          <template #trigger>
+            <n-button 
+              circle 
+              :type="isSyncAnnotation ? 'primary' : 'default'"
+              @click="toggleSyncAnnotation"
+              class="sync-annotation-btn"
+            >
+              <n-icon><SyncOutlined /></n-icon>
+            </n-button>
+          </template>
+          {{ isSyncAnnotation ? '标注同步：开' : '标注同步：关' }}
+        </n-tooltip>
         
         <!-- 分页控制按钮 -->
         <n-space class="pagination-controls" style="margin-left: 10px;">
@@ -121,7 +133,7 @@ import {
   NTooltip,
   useMessage
 } from 'naive-ui'
-import { DownOutlined, UpOutlined, LeftOutlined, RightOutlined, LogoutOutlined, UserOutlined } from '@vicons/antd'
+import { DownOutlined, UpOutlined, LeftOutlined, RightOutlined, LogoutOutlined, UserOutlined, SyncOutlined } from '@vicons/antd'
 import { useUserStore } from '@/stores/user'
 import { useViewerStore } from '@/stores/viewer'
 
@@ -141,7 +153,8 @@ const emit = defineEmits([
   'openRegistrationModal',
   'handleFolderAndUpload',
   'toggleHeader',
-  'openUploadModal'
+  'openUploadModal',
+  'update:isSyncAnnotation'
 ])
 
 const router = useRouter()
@@ -149,6 +162,15 @@ const message = useMessage()
 const userStore = useUserStore()
 const viewerStore = useViewerStore()
 const username = computed(() => userStore.username || 'Guest')
+
+// 标注同步开关
+const isSyncAnnotation = ref(false)
+
+// 切换标注同步状态
+const toggleSyncAnnotation = () => {
+  isSyncAnnotation.value = !isSyncAnnotation.value
+  emit('update:isSyncAnnotation', isSyncAnnotation.value)
+}
 
 // 分页相关
 const paginationInfo = computed(() => {
@@ -354,5 +376,9 @@ const openScreenRecorder = () => {
 
 .toggle-header-btn:hover {
   background: #40a9ff;
+}
+
+.sync-annotation-btn {
+  margin-left: 10px;
 }
 </style> 
