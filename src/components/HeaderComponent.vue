@@ -30,6 +30,9 @@
             右大左小
           </n-button>
         </n-button-group>
+        
+
+        
         <!-- 配准按钮 -->
         <n-button @click="openRegistrationModal" type="primary" class="registration-btn">
           配准
@@ -156,14 +159,12 @@ const paginationInfo = computed(() => {
 const nextPage = () => {
   if (paginationInfo.value.hasNextPage) {
     viewerStore.nextPage()
-    message.success(`已切换到第 ${paginationInfo.value.currentPage} 页`)
   }
 }
 
 const prevPage = () => {
   if (paginationInfo.value.hasPrevPage) {
     viewerStore.prevPage()
-    message.success(`已切换到第 ${paginationInfo.value.currentPage} 页`)
   }
 }
 
