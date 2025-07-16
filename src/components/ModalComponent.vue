@@ -8,53 +8,76 @@
           <button class="modal-close-btn" @click="closeRegistrationModal">×</button>
         </div>
         <div class="modal-body">
-          <!-- 可配准的文件夹列表 -->
-          <div class="registration-folders-list">
-            <!-- 已配准/配准中的文件夹 -->
-            <div v-if="registeredFolders.length > 0" class="registered-folders">
-              <div v-for="(folder, index) in registeredFolders" :key="index" class="registration-folder-item">
-                <div class="registration-folder-info">
-                  <div class="folder-name">{{ folder.name }}</div>
-                </div>
-                <div class="registration-progress-wrapper">
-                  <div v-if="folder.status === 'processing'" class="registration-progress">
-                    <div class="progress-bar">
-                      <div class="progress-bar-inner" :style="{ width: `${folder.progress}%` }"></div>
-                    </div>
-                    <div class="progress-info">
-                      <div class="progress-text">{{ folder.progress }}%</div>
-                    </div>
-                    <div v-if="folder.processedFiles && folder.totalFiles" class="size-info">
-                      {{ folder.processedFiles }} / {{ folder.totalFiles }} 文件
-                    </div>
-                  </div>
-                  <div v-else-if="folder.status === 'success'" class="registration-status success">
-                    配准成功
-                    <button class="delete-btn" @click="removeRegistrationRecord(index)">×</button>
-                  </div>
-                  <div v-else-if="folder.status === 'error'" class="registration-status error">
-                    配准失败
-                    <button class="delete-btn" @click="removeRegistrationRecord(index)">×</button>
-                  </div>
-                </div>
-              </div>
+          <!-- 任务进度展示 -->
+          <registration-progress 
+            v-if="currentTask"
+            :task="currentTask"
+            @refresh="refreshTaskProgress"
+            @view-result="viewTaskResult"
+            class="registration-progress-component"
+          />
+          
+          <!-- 历史任务 -->
+          <div v-if="recentTasks.length > 0" class="recent-tasks">
+            <div class="section-title">
+              <span>历史任务</span>
+              <n-button text size="small" @click="loadUserTasks">
+                <n-icon><reload-outlined /></n-icon> 刷新
+              </n-button>
             </div>
-            
-                        <!-- 可选择的文件夹列表 -->
-            <ul class="folder-list">
-              <li 
-                v-for="folder in registrationFolderList" 
-                :key="folder.folderName"
-                :class="{ selected: selectedRegistrationFolder === folder.folderName }"
-                @click="selectRegistrationFolder(folder.folderName)"
-              >
-                {{ folder.folderName }}
-              </li>
-            </ul>
+            <n-list bordered size="small">
+              <n-list-item v-for="(task, index) in recentTasks" :key="task.taskId">
+                <n-thing :title="task.folder" :description="`状态: ${getStatusText(task.status)}`">
+                  <template #header-extra>
+                    <n-tag :type="getStatusTagType(task.status)" size="small">
+                      {{ task.progress }}%
+                    </n-tag>
+                  </template>
+                  <template #description>
+                    <div class="task-description">
+                      <span>{{ task.message }}</span>
+                      <span>{{ formatTime(task.lastUpdated) }}</span>
+                    </div>
+                  </template>
+                  <template #footer>
+                    <n-space>
+                      <n-button size="tiny" @click="loadTaskDetails(task)">查看详情</n-button>
+                      <n-button 
+                        v-if="task.status === 'completed'" 
+                        size="tiny" 
+                        type="primary"
+                        @click="viewTaskResult(task)"
+                      >
+                        查看结果
+                      </n-button>
+                    </n-space>
+                  </template>
+                </n-thing>
+              </n-list-item>
+            </n-list>
           </div>
+          
+          <!-- 可选择的文件夹列表 -->
+          <div class="section-title">可配准文件夹</div>
+          <ul class="folder-list">
+            <li 
+              v-for="folder in registrationFolderList" 
+              :key="folder.folderName"
+              :class="{ selected: selectedRegistrationFolder === folder.folderName }"
+              @click="selectRegistrationFolder(folder.folderName)"
+            >
+              {{ folder.folderName }}
+            </li>
+          </ul>
         </div>
         <div class="modal-footer">
-          <button class="modal-btn primary" @click="startRegistration" :disabled="!selectedRegistrationFolderValue || isCurrentFolderProcessing()">配准</button>
+          <button 
+            class="modal-btn primary" 
+            @click="startRegistration" 
+            :disabled="!selectedRegistrationFolderValue || isTaskInProgress"
+          >
+            开始配准
+          </button>
           <button class="modal-btn" @click="closeRegistrationModal">关闭</button>
         </div>
       </div>
@@ -206,24 +229,30 @@
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits, computed, h } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 import { 
   NModal, 
-  NCard, 
-  NInput, 
-  NButton, 
-  NSelect, 
+  NDataTable, 
   NEmpty, 
-  NDataTable,
-  NIcon,
-  NDescriptions,
-  NDescriptionsItem,
-  NTabs,
-  NTabPane
+  NSpace, 
+  NButton, 
+  NIcon, 
+  NList, 
+  NListItem, 
+  NThing, 
+  NTag 
 } from 'naive-ui'
+import { 
+  ReloadOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  ClockCircleOutlined
+} from '@vicons/antd'
 import { useUserStore } from '@/stores/user'
 import { imageApi } from '@/services/api'
+import RegistrationProgress from './RegistrationProgress.vue'
+import registrationService from '../services/registrationService'
 
 const props = defineProps({
   registrationModalVisible: {
@@ -280,7 +309,8 @@ const emit = defineEmits([
   'startRegistration',
   'handleFileSelection',
   'startUpload',
-  'folderUploaded'
+  'folderUploaded',
+  'view-task-result'
 ])
 
 // 存储选择的文件和文件夹名
@@ -288,6 +318,124 @@ const selectedFiles = ref([])
 const folderName = ref('')
 const uploadedFolders = ref([])
 const registeredFolders = ref([])
+
+// 配准任务相关
+const currentTask = ref(null)
+const recentTasks = ref([])
+const isTaskInProgress = computed(() => 
+  currentTask.value && 
+  (currentTask.value.status === 'pending' || currentTask.value.status === 'processing')
+)
+
+// 格式化日期时间
+const formatTime = (timeString) => {
+  if (!timeString) return '无';
+  try {
+    const date = new Date(timeString);
+    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  } catch (err) {
+    return timeString;
+  }
+};
+
+// 获取状态文本
+const getStatusText = (status) => {
+  switch(status) {
+    case 'pending': return '等待中';
+    case 'processing': return '处理中';
+    case 'completed': return '已完成';
+    case 'failed': return '失败';
+    default: return '未知状态';
+  }
+};
+
+// 获取状态标签类型
+const getStatusTagType = (status) => {
+  switch(status) {
+    case 'pending': return 'default';
+    case 'processing': return 'info';
+    case 'completed': return 'success';
+    case 'failed': return 'error';
+    default: return 'default';
+  }
+};
+
+// 加载用户所有任务
+const loadUserTasks = async () => {
+  try {
+    const response = await registrationService.getUserTasks();
+    if (response && response.code === 1 && response.data) {
+      // 按最后更新时间排序，最新的在前面
+      recentTasks.value = response.data
+        .sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated))
+        .slice(0, 5); // 只显示最近5条
+    }
+  } catch (error) {
+    console.error('加载任务列表失败:', error);
+  }
+};
+
+// 加载任务详情
+const loadTaskDetails = async (task) => {
+  try {
+    const response = await registrationService.getTaskProgress(task.taskId);
+    if (response && response.code === 1 && response.data) {
+      currentTask.value = response.data;
+      // 保存到localStorage以便下次打开应用时恢复
+      registrationService.saveTaskToLocalStorage(response.data.folder, response.data);
+    }
+  } catch (error) {
+    console.error('加载任务详情失败:', error);
+  }
+};
+
+// 刷新当前任务进度
+const refreshTaskProgress = async () => {
+  if (!currentTask.value || !currentTask.value.taskId) return;
+  
+  try {
+    const response = await registrationService.getTaskProgress(currentTask.value.taskId);
+    if (response && response.code === 1 && response.data) {
+      currentTask.value = response.data;
+      // 更新本地存储
+      if (currentTask.value.folder) {
+        registrationService.saveTaskToLocalStorage(currentTask.value.folder, currentTask.value);
+      }
+    }
+  } catch (error) {
+    console.error('刷新任务进度失败:', error);
+  }
+};
+
+// 查看任务结果
+const viewTaskResult = (task) => {
+  if (task.status === 'completed') {
+    // 这里添加查看结果的逻辑
+    emit('view-task-result', task);
+  }
+};
+
+// 模态框打开时加载用户任务
+watch(() => props.registrationModalVisible, async (newValue) => {
+  if (newValue) {
+    await loadUserTasks();
+    
+    // 检查localStorage是否有保存的任务
+    if (props.selectedRegistrationFolderValue) {
+      const savedTask = registrationService.getTaskFromLocalStorage(props.selectedRegistrationFolderValue);
+      if (savedTask && savedTask.taskId) {
+        try {
+          const response = await registrationService.getTaskProgress(savedTask.taskId);
+          if (response && response.code === 1 && response.data) {
+            currentTask.value = response.data;
+          }
+        } catch (error) {
+          console.error('加载保存的任务失败:', error);
+        }
+      }
+    }
+  }
+});
 
 // 处理文件选择
 const handleFileSelection = (event) => {
@@ -1167,5 +1315,59 @@ const calculateAverageStats = (data) => {
   font-size: 48px;
   color: #ccc;
   margin-bottom: 10px;
+}
+
+/* 添加配准进度组件样式 */
+.registration-progress-component {
+  margin-bottom: 20px;
+}
+
+/* 标题样式 */
+.section-title {
+  font-weight: bold;
+  margin: 12px 0 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 历史任务列表样式 */
+.recent-tasks {
+  margin-bottom: 20px;
+}
+
+.task-description {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+/* 文件夹列表样式 */
+.folder-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 0;
+  margin: 0;
+}
+
+.folder-list li {
+  list-style: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.folder-list li:hover {
+  background-color: #f5f5f5;
+}
+
+.folder-list li.selected {
+  background-color: #e6f7ff;
+  border-right: 2px solid #1890ff;
 }
 </style> 

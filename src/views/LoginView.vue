@@ -165,7 +165,6 @@ const handleSubmit = async () => {
               token: result.token
             });
             
-            message.success('登录成功');
             router.push('/analysis');
           } else {
             message.error(result.message || '登录失败');

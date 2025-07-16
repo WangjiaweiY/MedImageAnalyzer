@@ -116,15 +116,12 @@ export const imageApi = {
   // 开始配准
   startRegistration: async (folderName, username) => {
     try {
-      const res = await fetch(`/api/svs/register/${folderName}`, getAuthOptions({
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username })
+      // 根据新的API文档，使用查询参数传递folder
+      const res = await fetch(`/api/svs/submit?folder=${encodeURIComponent(folderName)}`, getAuthOptions({
+        method: 'POST'
       }));
       if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-      return true;
+      return await res.json();
     } catch (error) {
       return handleError(error, '图像配准失败');
     }
@@ -185,5 +182,95 @@ export const authApi = {
     } catch (error) {
       return false;
     }
+  }
+}; 
+
+// 通用API请求方法
+export default {
+  /**
+   * 发送GET请求
+   * @param {String} endpoint - API端点
+   * @param {Object} options - 请求选项
+   * @returns {Promise} - 返回Promise
+   */
+  get(endpoint) {
+    return fetch(`/api${endpoint}`, getAuthOptions())
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        return response.json();
+      })
+      .catch(error => handleError(error, `GET请求 ${endpoint} 失败`));
+  },
+
+  /**
+   * 发送POST请求
+   * @param {String} endpoint - API端点
+   * @param {Object} data - 请求数据
+   * @param {Object} options - 额外的请求选项
+   * @returns {Promise} - 返回Promise
+   */
+  post(endpoint, data, options = {}) {
+    const requestOptions = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      },
+      ...options
+    };
+
+    // 只有当数据不为null时才添加body
+    if (data !== null && data !== undefined) {
+      requestOptions.body = JSON.stringify(data);
+    }
+
+    return fetch(`/api${endpoint}`, getAuthOptions(requestOptions))
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        return response.json();
+      })
+      .catch(error => handleError(error, `POST请求 ${endpoint} 失败`));
+  },
+
+  /**
+   * 发送PUT请求
+   * @param {String} endpoint - API端点
+   * @param {Object} data - 请求数据
+   * @param {Object} options - 额外的请求选项
+   * @returns {Promise} - 返回Promise
+   */
+  put(endpoint, data, options = {}) {
+    return fetch(`/api${endpoint}`, getAuthOptions({
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      },
+      body: JSON.stringify(data),
+      ...options
+    }))
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+      return response.json();
+    })
+    .catch(error => handleError(error, `PUT请求 ${endpoint} 失败`));
+  },
+
+  /**
+   * 发送DELETE请求
+   * @param {String} endpoint - API端点
+   * @param {Object} options - 请求选项
+   * @returns {Promise} - 返回Promise
+   */
+  delete(endpoint, options = {}) {
+    return fetch(`/api${endpoint}`, getAuthOptions({
+      method: 'DELETE',
+      ...options
+    }))
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+      return response.json();
+    })
+    .catch(error => handleError(error, `DELETE请求 ${endpoint} 失败`));
   }
 }; 

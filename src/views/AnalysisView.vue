@@ -74,6 +74,7 @@
       @handle-file-selection="handleFileSelection"
       @start-upload="startUpload"
       @folder-uploaded="handleFolderUploaded"
+      @view-task-result="handleViewTaskResult"
       ref="modalRef"
     />
   </n-layout>
@@ -92,6 +93,9 @@ import HeaderComponent from '@/components/HeaderComponent.vue'
 import FileExplorerComponent from '@/components/FileExplorerComponent.vue'
 import ViewerComponent from '@/components/ViewerComponent.vue'
 import ModalComponent from '@/components/ModalComponent.vue'
+
+// 导入注册服务
+import registrationService from '@/services/registrationService'
 
 const message = useMessage()
 const userStore = useUserStore()
@@ -291,54 +295,69 @@ const openRegistrationModal = async () => {
   }
 }
 
-// 开始配准，调用后端接口启动配准流程并监控进度
-const startRegistration = async (folderName) => {
-  if (!folderName) {
-    message.warning("请选择一个文件夹")
-    return
-  }
-  
+// 开始配准过程
+const startRegistration = async () => {
   try {
-    // 启动配准任务，获取任务ID
-    const response = await imageApi.startRegistration(folderName, userStore.username)
+    if (!selectedRegistrationFolder.value) {
+      message.error("请选择一个文件夹进行配准")
+      return
+    }
+
+    // 显示进度中的状态
+    registrationInProgress.value = true
+    registrationProgress.value = 0
     
-    // 模拟配准进度（实际项目中应该通过轮询API或WebSocket获取真实进度）
-    let currentProgress = 0
-    const interval = setInterval(() => {
-      // 更新进度
-      if (currentProgress < 95) {
-        currentProgress += Math.random() * 5 + 1
-        if (currentProgress > 95) currentProgress = 95
-        
-        // 通过ref访问模态框组件方法
-        if (modalRef.value) {
-          modalRef.value.updateRegistrationProgress(folderName, Math.floor(currentProgress))
-        }
-      } else {
-        clearInterval(interval)
-        
-        // 模拟最终完成
-        setTimeout(() => {
-          currentProgress = 100
-          
-          // 通过ref访问模态框组件方法
-          if (modalRef.value) {
-            modalRef.value.setRegistrationSuccess(folderName)
-          }
-          
-          message.success(`文件夹 ${folderName} 配准成功`)
-          fetchFileList()
-        }, 1000)
-      }
-    }, 500) // 每500ms更新一次进度
+    // 调用配准API
+    const response = await registrationService.submitTask(selectedRegistrationFolder.value)
     
+    // 根据API文档解析响应
+    if (response && response.code === 1 && response.data) {
+      const taskData = response.data
+      message.success(`配准任务已提交，任务ID: ${taskData.taskId}`)
+      
+      // 保存任务信息到本地存储，便于下次恢复
+      registrationService.saveTaskToLocalStorage(selectedRegistrationFolder.value, {
+        taskId: taskData.taskId,
+        folder: selectedRegistrationFolder.value,
+        status: 'pending',
+        progress: 0,
+        message: taskData.message || '任务已提交，等待处理',
+        startTime: new Date().toISOString()
+      })
+      
+      // 关闭配准对话框，因为任务进度会通过任务列表展示
+      registrationModalVisible.value = false
+      
+      // 等待一段时间后刷新文件列表，以显示配准后的文件
+      setTimeout(() => {
+        fetchFileList()
+      }, 10000) // 等待10秒后刷新
+    } else {
+      throw new Error(response?.msg || "未获取到有效的任务ID")
+    }
   } catch (error) {
-    // 通过ref访问模态框组件方法
-    if (modalRef.value) {
-      modalRef.value.setRegistrationError(folderName)
+    console.error("配准失败:", error)
+    message.error(`配准失败: ${error.message || "未知错误"}`)
+    registrationInProgress.value = false
+  }
+}
+
+// 查看配准结果
+const handleViewTaskResult = (task) => {
+  if (task && task.folder) {
+    // 更新选中的文件夹为配准结果文件夹
+    selectedFolder.value = task.folder
+    
+    // 展开该文件夹
+    if (!expandedFolders.value[task.folder]) {
+      toggleFolder(task.folder)
     }
     
-    message.error(`配准失败: ${error.message}`)
+    // 关闭配准对话框
+    registrationModalVisible.value = false
+    
+    // 可选：刷新文件列表以确保看到最新结果
+    fetchFileList()
   }
 }
 
