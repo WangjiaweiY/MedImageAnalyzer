@@ -12,8 +12,13 @@
             </n-icon>
             <span>配准进度</span>
           </div>
-          <n-tag :type="statusTagType" size="small">{{ statusText }}</n-tag>
+          <!-- 移动关闭按钮插槽到状态标签上方 -->
+          <div class="header-right">
+            <slot name="close-button"></slot>
+            <n-tag :type="statusTagType" size="small">{{ statusText }}</n-tag>
+          </div>
         </div>
+        <!-- 删除这里的关闭按钮插槽 -->
       </template>
       
       <div class="progress-container">
@@ -144,7 +149,8 @@ const progressStatus = computed(() => {
   if (!props.task) return 'default';
   if (props.task.status === 'completed') return 'success';
   if (props.task.status === 'failed') return 'error';
-  return 'processing';
+  // 正在处理中的任务也使用success状态，这样进度条会随着进度增加而变绿
+  return 'success';
 });
 
 // 格式化日期时间
@@ -215,6 +221,12 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   font-weight: bold;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .spinning {

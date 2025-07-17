@@ -15,7 +15,11 @@
             @refresh="refreshTaskProgress"
             @view-result="viewTaskResult"
             class="registration-progress-component"
-          />
+          >
+            <template #close-button>
+              <button class="close-details-btn" @click="closeTaskDetails">×</button>
+            </template>
+          </registration-progress>
           
           <!-- 历史任务 -->
           <div v-if="recentTasks.length > 0" class="recent-tasks">
@@ -387,6 +391,11 @@ const loadTaskDetails = async (task) => {
   } catch (error) {
     console.error('加载任务详情失败:', error);
   }
+};
+
+// 关闭任务详情
+const closeTaskDetails = () => {
+  currentTask.value = null;
 };
 
 // 刷新当前任务进度
@@ -1320,6 +1329,7 @@ const calculateAverageStats = (data) => {
 /* 添加配准进度组件样式 */
 .registration-progress-component {
   margin-bottom: 20px;
+  position: relative;
 }
 
 /* 标题样式 */
@@ -1369,5 +1379,24 @@ const calculateAverageStats = (data) => {
 .folder-list li.selected {
   background-color: #e6f7ff;
   border-right: 2px solid #1890ff;
+}
+
+.close-details-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #999;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.close-details-btn:hover {
+  background-color: #f0f0f0;
+  color: #666;
 }
 </style> 
