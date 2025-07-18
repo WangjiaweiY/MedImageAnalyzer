@@ -8,9 +8,9 @@
           <button class="modal-close-btn" @click="closeRegistrationModal">×</button>
         </div>
         <div class="modal-body">
-          <!-- 任务进度展示 -->
+          <!-- 任务进度展示 - 只在有当前任务时显示 -->
           <registration-progress 
-            v-if="currentTask"
+            v-if="currentTask && (currentTask.status === 'pending' || currentTask.status === 'processing')"
             :task="currentTask"
             @refresh="refreshTaskProgress"
             @view-result="viewTaskResult"
@@ -21,8 +21,8 @@
             </template>
           </registration-progress>
           
-          <!-- 历史任务 -->
-          <div v-if="recentTasks.length > 0" class="recent-tasks">
+          <!-- 历史任务视图 - 只在历史任务视图激活时显示 -->
+          <div v-if="showHistoryTasks && recentTasks.length > 0" class="recent-tasks">
             <div class="section-title">
               <span>历史任务</span>
               <n-button text size="small" @click="loadUserTasks">
@@ -59,30 +59,43 @@
                 </n-thing>
               </n-list-item>
             </n-list>
+            <div class="button-row">
+              <n-button @click="toggleHistoryTasks(false)" size="small">返回</n-button>
+            </div>
           </div>
           
-          <!-- 可选择的文件夹列表 -->
-          <div class="section-title">可配准文件夹</div>
-          <ul class="folder-list">
-            <li 
-              v-for="folder in registrationFolderList" 
-              :key="folder.folderName"
-              :class="{ selected: selectedRegistrationFolder === folder.folderName }"
-              @click="selectRegistrationFolder(folder.folderName)"
-            >
-              {{ folder.folderName }}
-            </li>
-          </ul>
+          <!-- 可选择的文件夹列表 - 在非历史任务视图时显示 -->
+          <div v-if="!showHistoryTasks">
+            <div class="section-title">可配准文件夹</div>
+            <ul class="folder-list">
+              <li 
+                v-for="folder in registrationFolderList" 
+                :key="folder.folderName"
+                :class="{ selected: selectedRegistrationFolder === folder.folderName }"
+                @click="selectRegistrationFolder(folder.folderName)"
+              >
+                {{ folder.folderName }}
+              </li>
+            </ul>
+          </div>
         </div>
         <div class="modal-footer">
-          <button 
-            class="modal-btn primary" 
-            @click="startRegistration" 
-            :disabled="!selectedRegistrationFolderValue || isTaskInProgress"
-          >
-            开始配准
-          </button>
-          <button class="modal-btn" @click="closeRegistrationModal">关闭</button>
+          <div v-if="!showHistoryTasks">
+            <n-button 
+              type="primary"
+              @click="startRegistration" 
+              :disabled="!selectedRegistrationFolderValue || isTaskInProgress"
+            >
+              开始配准
+            </n-button>
+            <n-button 
+              type="primary"
+              @click="toggleHistoryTasks(true)"
+            >
+              历史任务
+            </n-button>
+          </div>
+          <!-- 历史任务视图不需要额外的按钮 -->
         </div>
       </div>
     </div>
@@ -331,6 +344,17 @@ const isTaskInProgress = computed(() =>
   (currentTask.value.status === 'pending' || currentTask.value.status === 'processing')
 )
 
+// 添加历史任务显示状态控制
+const showHistoryTasks = ref(false)
+
+// 切换历史任务显示状态
+const toggleHistoryTasks = (show) => {
+  showHistoryTasks.value = show
+  if (show) {
+    loadUserTasks() // 加载历史任务数据
+  }
+}
+
 // 格式化日期时间
 const formatTime = (timeString) => {
   if (!timeString) return '无';
@@ -424,10 +448,11 @@ const viewTaskResult = (task) => {
   }
 };
 
-// 模态框打开时加载用户任务
+// 模态框打开时加载用户任务（如果有当前配准任务）
 watch(() => props.registrationModalVisible, async (newValue) => {
   if (newValue) {
-    await loadUserTasks();
+    // 重置历史任务视图状态
+    showHistoryTasks.value = false
     
     // 检查localStorage是否有保存的任务
     if (props.selectedRegistrationFolderValue) {
@@ -1398,5 +1423,18 @@ const calculateAverageStats = (data) => {
 .close-details-btn:hover {
   background-color: #f0f0f0;
   color: #666;
+}
+
+/* 新增按钮样式 */
+.modal-btn.secondary {
+  background: #52c41a;
+  color: white;
+  margin-left: 8px;
+}
+
+.button-row {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style> 
