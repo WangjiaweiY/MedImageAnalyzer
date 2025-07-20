@@ -77,9 +77,12 @@
       v-model:show="colorPickerVisible"
       preset="card"
       title="选择颜色"
-      :style="{ width: '300px' }"
+      :style="{ width: '340px' }"
     >
       <n-color-picker v-model:value="currentColor" @confirm="updateToolSettings" />
+      <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+        <n-button type="primary" @click="confirmColorSelection">确定</n-button>
+      </div>
     </n-modal>
     
     <!-- 线宽调节弹窗 -->
@@ -87,7 +90,7 @@
       v-model:show="lineWidthPickerVisible"
       preset="card"
       title="调整线宽"
-      :style="{ width: '300px' }"
+      :style="{ width: '340px' }"
     >
       <div class="line-width-preview" :style="{height: lineWidth + 'px', backgroundColor: currentColor}"></div>
       <n-slider 
@@ -100,6 +103,9 @@
       <div class="slider-labels">
         <span>细</span>
         <span>粗</span>
+      </div>
+      <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+        <n-button type="primary" @click="confirmLineWidth">确定</n-button>
       </div>
     </n-modal>
   </div>
@@ -149,6 +155,16 @@ const showLineWidthPicker = () => {
   lineWidthPickerVisible.value = true;
 };
 
+const confirmColorSelection = () => {
+  colorPickerVisible.value = false;
+  updateToolSettings();
+};
+
+const confirmLineWidth = () => {
+  lineWidthPickerVisible.value = false;
+  updateToolSettings();
+};
+
 const updateToolSettings = () => {
   emit('tool-changed', {
     tool: currentTool.value,
@@ -170,32 +186,119 @@ const clearAnnotations = () => {
   top: 20px;
   left: 20px;
   z-index: 100;
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  padding: 8px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 12px 8px;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+.image-toolbox:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 3px 10px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+:deep(.n-button-group .n-button) {
+  margin: 3px 0;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  height: 38px;
+  width: 38px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.n-button-group .n-button:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+:deep(.n-button-group .n-button[type="primary"]) {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.25);
+  border: none;
+}
+
+:deep(.n-button-group .n-button[type="primary"]:hover) {
+  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+  box-shadow: 0 4px 10px rgba(24, 144, 255, 0.35);
+}
+
+:deep(.n-divider) {
+  margin: 8px 0;
 }
 
 .color-preview {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #fff;
   margin: 0 auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  transition: all 0.2s ease;
+}
+
+:deep(.n-button:hover) .color-preview {
+  transform: scale(1.1);
 }
 
 .line-width-preview {
   width: 100%;
   background-color: currentColor;
-  margin: 10px 0;
-  border-radius: 2px;
+  margin: 16px 0;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
 }
 
 .slider-labels {
   display: flex;
   justify-content: space-between;
-  margin-top: 5px;
-  font-size: 12px;
-  color: #666;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #8c9bab;
+  font-weight: 500;
+}
+
+:deep(.n-slider .n-slider-rail) {
+  height: 6px;
+  border-radius: 3px;
+}
+
+:deep(.n-slider .n-slider-handle) {
+  height: 16px;
+  width: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+:deep(.n-slider .n-slider-handle:hover),
+:deep(.n-slider .n-slider-handle:active) {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+:deep(.n-modal.n-card) {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 5px 10px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+:deep(.n-card-header) {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:deep(.n-card-header__main) {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1a2b4b;
+}
+
+:deep(.n-card__content) {
+  padding: 20px;
 }
 </style> 

@@ -15,7 +15,7 @@
         <div class="header-line"></div>
       </div>
       <n-card class="login-card" :class="{'focused': isFormFocused}">
-        <div class="card-title">{{ mode === 'login' ? '用户登录' : '用户注册' }}</div>
+        <div class="card-title">{{ mode === 'login' ? '登录' : '注册' }}</div>
         <n-form
           ref="formRef"
           :model="formValue"

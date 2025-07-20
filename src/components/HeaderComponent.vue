@@ -239,15 +239,18 @@ const openScreenRecorder = () => {
 .header {
   height: 64px;
   padding: 0 24px;
-  background: #1890ff;
+  background: linear-gradient(120deg, #0c63e4 0%, #1890ff 100%);
   color: white;
   position: relative;
-  transition: height 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
 }
 
 .header-collapsed {
   height: 10px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .header-collapsed .header-content {
@@ -259,12 +262,28 @@ const openScreenRecorder = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.25s ease;
 }
 
 .logo {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 600;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.logo::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 2px;
 }
 
 .controls {
@@ -272,7 +291,68 @@ const openScreenRecorder = () => {
   margin: 0 40px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+:deep(.n-button-group) {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+:deep(.n-button-group .n-button) {
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  padding: 0 12px;
+  height: 32px;
+  transition: all 0.3s ease;
+}
+
+:deep(.n-button-group .n-button:hover) {
+  background: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+:deep(.n-button-group .n-button[type="primary"]) {
+  background: rgba(255, 255, 255, 0.85);
+  color: #0c63e4;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.registration-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  margin-left: 8px;
+  padding: 0 16px;
+  font-weight: 500;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.registration-btn::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: -100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.6s;
+}
+
+.registration-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.registration-btn:hover::after {
+  left: 100%;
 }
 
 .user-info {
@@ -289,96 +369,150 @@ const openScreenRecorder = () => {
   max-width: 600px;
 }
 
-.folder-upload-label {
-  position: relative;
-  display: inline-block;
-  cursor: pointer;
-  background-color: #f0faff;
-  padding: 8px 16px;
-  border: 1px solid #1890ff;
-  border-radius: 4px;
-  color: #1890ff;
+.upload-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  padding: 0 18px;
   font-weight: 500;
-  flex: 1;
-  text-align: center;
-  max-width: 300px;
-  margin-right: 150px;
+  position: relative;
+  overflow: hidden;
 }
 
-.folder-upload-label:hover {
-  background-color: #c7edff;
-}
-
-.folder-input {
+.upload-btn::after {
+  content: '';
   position: absolute;
-  left: 0;
-  top: 0;
-  opacity: 0;
-  cursor: pointer;
   width: 100%;
   height: 100%;
+  top: 0;
+  left: -100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.6s;
 }
 
-.folder-upload-button {
-  pointer-events: none;
+.upload-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
-.screen-recorder-button {
-  margin-right: 16px;
+.upload-btn:hover::after {
+  left: 100%;
 }
 
 .user-welcome {
   color: white;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  transition: all 0.3s ease;
+}
+
+.user-welcome:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .user-icon {
   margin-right: 2px;
+  opacity: 0.9;
 }
 
 .toggle-header-btn {
   position: absolute;
-  bottom: -10px;
+  bottom: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1890ff;
-  width: 30px;
+  background: linear-gradient(120deg, #0c63e4 0%, #1890ff 100%);
+  width: 36px;
   height: 20px;
-  border-radius: 0 0 15px 15px;
+  border-radius: 0 0 18px 18px;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 5;
 }
 
 .pagination-controls {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 2px 4px;
+}
+
+:deep(.pagination-controls .n-button) {
+  background: transparent;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.pagination-controls .n-button:hover) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+:deep(.pagination-controls .n-button:disabled) {
+  color: rgba(255, 255, 255, 0.4);
+  background: transparent;
 }
 
 .page-info {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
+  min-width: 42px;
   height: 24px;
   font-size: 12px;
   color: white;
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.15);
   border-radius: 12px;
   padding: 0 8px;
   justify-content: center;
   align-items: center;
   cursor: pointer;
   z-index: 10;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.page-info:hover {
+  background-color: rgba(255, 255, 255, 0.25);
 }
 
 .toggle-header-btn:hover {
-  background: #40a9ff;
+  background: linear-gradient(120deg, #0c63e4 0%, #40a9ff 100%);
+  color: white;
 }
 
 .sync-annotation-btn {
   margin-left: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  transition: all 0.3s ease;
+  color: white;
+}
+
+:deep(.n-button.sync-annotation-btn:hover) {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+}
+
+:deep(.n-button.sync-annotation-btn[type="primary"]) {
+  background: rgba(24, 144, 255, 0.8);
+  color: white;
 }
 </style> 

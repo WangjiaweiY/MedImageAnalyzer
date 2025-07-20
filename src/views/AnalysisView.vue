@@ -400,18 +400,96 @@ onMounted(() => {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background: linear-gradient(135deg, #f5f9fc 0%, #eef3f9 100%);
 }
 
 .content-wrapper {
   flex: 1;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   height: calc(100vh - 64px);
+  position: relative;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  background: linear-gradient(135deg, #f9fafc 0%, #f5f7f9 100%);
+  border-radius: 12px 12px 0 0;
+  margin-top: 4px;
 }
 
 .expanded-content {
   height: calc(100vh - 10px);
+}
+
+:deep(.n-layout-sider) {
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0 0 0 12px;
+  overflow: hidden;
+}
+
+:deep(.n-layout-sider:hover) {
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.14);
+}
+
+:deep(.n-layout-sider-collapsed-bar) {
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 70px;
+  border-radius: 0 8px 8px 0;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.12);
+  transition: all 0.3s ease;
+  z-index: 9;
+  background: linear-gradient(90deg, #f0f2f5 0%, #e6f7ff 100%);
+  border-left: none;
+}
+
+:deep(.n-layout-sider-collapsed-bar:hover) {
+  box-shadow: 5px 0 15px rgba(0, 0, 0, 0.18);
+  background: linear-gradient(90deg, #f0f2f5 0%, #bae7ff 100%);
+}
+
+:deep(.n-layout-sider-collapsed-bar .n-layout-toggle-button) {
+  margin-top: -6px;
+  transition: all 0.2s ease;
+}
+
+:deep(.n-layout-sider-collapsed-bar:hover .n-layout-toggle-button) {
+  transform: scale(1.15);
+  color: #1890ff;
+}
+
+:deep(.n-layout-content) {
+  z-index: 5;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  border-radius: 0 0 12px 0;
+}
+
+/* 增强滚动条样式 */
+:deep(::-webkit-scrollbar) {
+  width: 6px;
+  height: 6px;
+}
+
+:deep(::-webkit-scrollbar-thumb) {
+  background: rgba(24, 144, 255, 0.2);
+  border-radius: 6px;
+}
+
+:deep(::-webkit-scrollbar-thumb:hover) {
+  background: rgba(24, 144, 255, 0.4);
+}
+
+:deep(::-webkit-scrollbar-track) {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
 }
 </style>
   
