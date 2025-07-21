@@ -460,6 +460,7 @@ onMounted(() => {
   overflow: hidden;
 }
 
+/* 修复展示框的样式问题 */
 .viewer-wrapper {
   position: relative;
   border-radius: 12px;
@@ -470,6 +471,7 @@ onMounted(() => {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid rgba(0, 0, 0, 0.03);
+  min-height: 200px; /* 确保最小高度 */
 }
 
 .viewer-wrapper:hover {
@@ -478,7 +480,8 @@ onMounted(() => {
 }
 
 .selected-viewer {
-  box-shadow: 0 0 0 2px #1890ff, 0 6px 20px rgba(24, 144, 255, 0.25);
+  box-shadow: 0 0 0 2px #1890ff, 0 6px 20px rgba(24, 144, 255, 0.25) !important;
+  z-index: 5; /* 确保选中的视图在上层 */
 }
 
 .placeholder {
@@ -486,8 +489,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #fafbfd 0%, #f5f7fa 100%);
-  min-height: 120px;
+  background: white; /* 统一背景色 */
+  position: absolute;
+  top: 32px; /* 标题栏高度 */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
 }
 
 .osd-viewer {
@@ -576,102 +584,104 @@ onMounted(() => {
   grid-template-rows: repeat(2, 1fr);
 }
 
+/* 进一步改进多图模式和空状态 */
 .layout-9 {
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
+  max-height: 100%; /* 确保不会溢出父容器 */
 }
 
 .layout-16 {
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows: repeat(4, 1fr);
+  max-height: 100%; /* 确保不会溢出父容器 */
 }
 
-/* 左大右小布局 */
-.layout-left-big-right-small {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  grid-template-rows: 1fr;
-  gap: 20px;
-  height: 100%;
+/* 确保多图模式下每个查看器都有合适的最小高度 */
+.layout-9 .viewer-wrapper,
+.layout-16 .viewer-wrapper {
+  min-height: 140px;
 }
 
-.layout-left-big-right-small .big-viewer {
-  grid-column: 1;
-  grid-row: 1;
-  min-height: 100%;
+/* 在多图模式下简化空状态显示 */
+.layout-9 .empty-description,
+.layout-16 .empty-description {
+  display: none; /* 隐藏描述文本，节省空间 */
 }
 
-.layout-left-big-right-small .small-viewer {
-  height: auto;
+.layout-9 .empty-icon,
+.layout-16 .empty-icon {
+  margin-bottom: 8px; /* 减少图标下方间距 */
+  font-size: 24px;
 }
 
-/* 右侧小图区域容器 */
-.layout-left-big-right-small .right-small-container {
-  grid-column: 2;
-  grid-row: 1;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: repeat(4, 1fr);
-  gap: 16px;
-  height: 100%;
-  padding-right: 5px;
-  overflow-y: auto;
-  scrollbar-width: thin;
+.layout-9 .empty-title,
+.layout-16 .empty-title {
+  font-size: 13px;
+  margin-bottom: 0;
 }
 
-/* 右大左小布局 */
-.layout-right-big-left-small {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  grid-template-rows: 1fr;
-  gap: 20px;
-  height: 100%;
+/* 强化选中效果 */
+.viewer-wrapper.selected-viewer {
+  z-index: 10 !important; /* 确保在最上层 */
+  transform: translateY(-2px); /* 轻微上浮效果 */
+  box-shadow: 0 0 0 2px #1890ff, 0 8px 24px rgba(24, 144, 255, 0.35) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.layout-right-big-left-small .big-viewer {
-  grid-column: 2;
-  grid-row: 1;
-  min-height: 100%;
-}
-
-.layout-right-big-left-small .small-viewer {
-  height: auto;
-}
-
-/* 左侧小图区域容器 */
-.layout-right-big-left-small .left-small-container {
-  grid-column: 1;
-  grid-row: 1;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: repeat(4, 1fr);
-  gap: 16px;
-  height: 100%;
-  padding-right: 5px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
-.annotation-toggle {
+.viewer-wrapper.selected-viewer::before {
+  content: '';
   position: absolute;
-  bottom: 20px;
-  right: 20px;
-  z-index: 101;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 2px #1890ff;
+  pointer-events: none;
+  z-index: 100;
 }
 
-:deep(.annotation-toggle .n-button) {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+/* 增强小查看器的空状态显示 */
+.small .empty-state-content {
+  padding: 10px;
+}
+
+.small .empty-icon {
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+/* 确保标题栏在所有模式下的一致性 */
+.image-title-bar {
+  background: linear-gradient(90deg, rgba(24, 144, 255, 0.9) 0%, rgba(9, 109, 217, 0.9) 100%);
+  box-sizing: border-box;
+}
+
+/* 添加上传提示图标 */
+.empty-state-content::after {
+  content: '';
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+  width: 24px;
+  height: 24px;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%231890ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 8l-5-5-5 5M12 4v12"/></svg>') no-repeat center center;
+  opacity: 0.5;
   transition: all 0.3s ease;
-  border: none;
+  pointer-events: none;
 }
 
-:deep(.annotation-toggle .n-button:hover) {
+.empty-state-content:hover::after {
+  opacity: 0.8;
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
 }
 
-:deep(.annotation-toggle .n-button[type="primary"]) {
-  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+/* 移除多余样式 */
+.layout-9 .empty-state-content::after,
+.layout-16 .empty-state-content::after,
+.small .empty-state-content::after {
+  display: none; /* 在空间有限的情况下不显示额外图标 */
 }
 
 .small-viewer {
@@ -749,64 +759,191 @@ onMounted(() => {
 /* 优化空白状态样式 */
 .empty-state-content {
   text-align: center;
-  padding: 30px;
+  padding: 20px;
   color: #8c9bab;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #f9fafc 0%, #f0f2f5 100%);
-  border-radius: 8px;
+  background: white; /* 统一背景色 */
+  border-radius: 0;
   transition: all 0.3s ease;
 }
 
 .empty-state-content:hover {
-  background: linear-gradient(135deg, #f0f7ff 0%, #e6f7ff 100%);
-  box-shadow: inset 0 0 20px rgba(24, 144, 255, 0.05);
+  background: #f9fafc; /* 减轻色差 */
+  box-shadow: none; /* 移除内阴影 */
 }
 
 .empty-icon {
   color: #1890ff;
   opacity: 0.6;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   filter: drop-shadow(0 3px 8px rgba(24, 144, 255, 0.25));
   transition: all 0.3s ease;
 }
 
 .empty-state-content:hover .empty-icon {
-  transform: scale(1.1) translateY(-5px);
+  transform: scale(1.05);
   opacity: 0.8;
 }
 
 .empty-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: #1a2b4b;
 }
 
 .empty-description {
   font-size: 14px;
   line-height: 1.5;
-  max-width: 240px;
+  max-width: 200px;
   color: #5e6c84;
+  margin: 0 auto; /* 居中 */
 }
 
+/* 小型查看器的空状态样式 */
 .small .empty-state-content {
-  padding: 16px;
+  padding: 15px;
 }
 
 .small .empty-icon {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  font-size: 24px;
 }
 
 .small .empty-title {
-  font-size: 15px;
-  margin-bottom: 6px;
+  font-size: 14px;
+  margin-bottom: 4px;
 }
 
 .small .empty-description {
   font-size: 12px;
+  max-width: 150px;
+}
+
+/* 确保大查看器和小查看器的标题栏高度正确 */
+.small-viewer .placeholder {
+  top: 26px; /* 小型查看器的标题栏高度 */
+}
+
+.big-viewer .placeholder {
+  top: 36px; /* 大型查看器的标题栏高度 */
+}
+
+/* 恢复特殊布局样式 */
+/* 左大右小布局 */
+.layout-left-big-right-small {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr;
+  gap: 20px;
+  height: 100%;
+}
+
+.layout-left-big-right-small .big-viewer {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 100%;
+}
+
+.layout-left-big-right-small .small-viewer {
+  height: auto;
+}
+
+/* 右侧小图区域容器 */
+.layout-left-big-right-small .right-small-container {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 16px;
+  height: 100%;
+  padding-right: 5px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* 右大左小布局 */
+.layout-right-big-left-small {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  grid-template-rows: 1fr;
+  gap: 20px;
+  height: 100%;
+}
+
+.layout-right-big-left-small .big-viewer {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 100%;
+}
+
+.layout-right-big-left-small .small-viewer {
+  height: auto;
+}
+
+/* 左侧小图区域容器 */
+.layout-right-big-left-small .left-small-container {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 16px;
+  height: 100%;
+  padding-right: 5px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* 恢复标注切换按钮样式 */
+.annotation-toggle {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 101;
+}
+
+:deep(.annotation-toggle .n-button) {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  border: none;
+}
+
+:deep(.annotation-toggle .n-button:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+:deep(.annotation-toggle .n-button[type="primary"]) {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+}
+
+/* 进一步优化特殊布局的空状态显示 */
+.layout-left-big-right-small .big-viewer .empty-state-content,
+.layout-right-big-left-small .big-viewer .empty-state-content {
+  padding: 30px;
+}
+
+.layout-left-big-right-small .big-viewer .empty-icon,
+.layout-right-big-left-small .big-viewer .empty-icon {
+  font-size: 60px;
+  margin-bottom: 20px;
+}
+
+/* 修复小视图容器滚动 */
+.right-small-container, .left-small-container {
+  -webkit-overflow-scrolling: touch; /* 添加iOS滚动惯性 */
+}
+
+/* 修复多图模式下图像容器溢出问题 */
+.viewer-container {
+  max-height: 100%;
+  overflow-y: hidden;
 }
 </style> 

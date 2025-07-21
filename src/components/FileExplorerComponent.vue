@@ -1,18 +1,19 @@
 <template>
   <n-layout-sider
-    collapsible
-    :width="280"
-    :collapsed-width="0"
-    show-trigger
+    :width="320"
+    :collapsed-width="320"
+    :show-trigger="false"
     class="file-sider"
+    :style="{ width: '320px !important' }"
   >
+    <!-- 侧边栏头部 -->
     <div class="sidebar-header">
       <n-button circle type="primary" size="small" @click="fetchFileList">
         <n-icon><ReloadOutlined /></n-icon>
       </n-button>
       <n-tooltip trigger="hover" placement="bottom">
         <template #trigger>
-          <n-button circle type="info" size="small" @click="handleAutoDisplayAllImages" style="margin-left: 8px;">
+          <n-button circle type="info" size="small" @click="handleAutoDisplayAllImages()" style="margin-left: 8px;">
             <n-icon><EyeOutlined /></n-icon>
           </n-button>
         </template>
@@ -48,89 +49,141 @@
         保存当前视图
       </n-tooltip>
     </div>
+    
+    <!-- 文件列表 -->
     <n-list class="file-list" hoverable>
+      <!-- 文件列表为空时的占位符 -->
+      <div v-if="!fileList || fileList.length === 0" class="empty-explorer">
+        <n-icon :component="FolderOpenOutlined" :size="40" />
+        <h3>暂无文件夹</h3>
+        <p>当前没有可用的文件夹</p>
+        <n-button type="primary" size="small" @click="fetchFileList">
+          刷新
+        </n-button>
+      </div>
+      
       <n-list-item 
+        v-else
         v-for="item in fileList" 
         :key="item.folderName"
-        :class="{ 'selected': selectedFolder === item.folderName }"
+        :class="{ 'selected': selectedFolder === item.folderName, 'folder-expanded': expandedFolders[item.folderName] }"
       >
-        <div class="folder-item">
-          <n-tooltip trigger="hover" placement="right">
-            <template #trigger>
-              <span @click="toggleFolder(item.folderName)" class="folder-name">
+        <!-- 文件夹项 -->
+        <div class="folder-item" :data-folder="item.folderName">
+          <!-- 文件夹名称 -->
+          <div class="folder-name-container">
+            <div 
+              @click="toggleFolder(item.folderName)" 
+              class="folder-name"
+              :title="item.folderName"
+            >
                 {{ item.folderName }}
-              </span>
-            </template>
-            {{ item.folderName }}
-          </n-tooltip>
+            </div>
+          </div>
+        
+          <!-- 按钮操作区 -->
           <div class="toggle-actions">
+            <!-- 展开/折叠按钮 -->
             <n-button 
-              size="small" 
               class="toggle-folder-btn" 
+              :class="{ 'expanded': expandedFolders[item.folderName] }"
               @click.stop="toggleFolder(item.folderName)"
+              quaternary
             >
               <n-icon :component="expandedFolders[item.folderName] ? UpOutlined : DownOutlined" />
             </n-button>
-            <div class="action-menu-container">
-              <button class="action-menu-btn" @click.stop="toggleActionMenu(item.folderName)">
+          
+            <!-- 更多操作按钮 -->
+            <button 
+              class="action-menu-btn" 
+              @click.stop="toggleActionMenu(item.folderName, 0, $event)"
+              :data-folder="item.folderName"
+            >
                 <n-icon :component="EllipsisOutlined" />
               </button>
-              <div v-if="actionMenuVisible[item.folderName]" class="action-menu-dropdown">
-                <ul>
-                  <li @click="handleFolderMenuAction(() => deleteFolder(item.folderName))">删除</li>
-                  <li @click="handleFolderMenuAction(() => autoDisplayImages(item.folderName))">
-                    一键展示
-                  </li>
-                </ul>
               </div>
             </div>
-          </div>
-        </div>
+      
         <!-- 二级菜单：显示展开后的文件和子文件夹 -->
         <div v-if="expandedFolders[item.folderName]" class="dzi-file-list">
-          <n-list-item 
+          <!-- 加载中状态 -->
+          <div v-if="loading && loading[item.folderName]" class="loading-state">
+            <n-spin size="small" />
+            <span>加载中...</span>
+          </div>
+          <!-- 空文件夹状态 -->
+          <div v-else-if="!folderDziFiles[item.folderName] || folderDziFiles[item.folderName].length === 0" class="empty-folder">
+            <n-icon :component="InboxOutlined" :size="30" />
+            <span>此文件夹为空</span>
+            <n-button text type="primary" size="small" @click="$emit('uploadToFolder', item.folderName)">
+              <n-icon :component="UploadOutlined" />
+              上传文件
+            </n-button>
+          </div>
+          <!-- 文件列表 -->
+          <div 
+            v-else
             v-for="subItem in folderDziFiles[item.folderName] || []" 
             :key="subItem.name"
-            class="dzi-item file-item"
+            class="dzi-item"
+            @click="selectDziItem(item.folderName, subItem)"
           >
-            <n-tooltip trigger="hover" placement="right">
-              <template #trigger>
-                <span class="file-name" @click="selectDziItem(item.folderName, subItem)">
+            <div 
+              class="file-name" 
+              :class="getFileClass(subItem.name)"
+              :title="subItem.name"
+            >
                   {{ subItem.name }}
-                </span>
-              </template>
-              {{ subItem.name }}
-            </n-tooltip>
-            <!-- 文件操作菜单按钮 -->
-            <div class="file-action-menu-container">
-              <button class="file-action-menu-btn" @click.stop="toggleFileActionMenu(item.folderName, subItem.name)">
+            </div>
+            <button 
+              class="action-menu-btn file-action-btn"
+              @click.stop="showFileMenu(item.folderName, subItem.name, $event)"
+              :data-file="subItem.name"
+              :data-folder="item.folderName"
+            >
                 <n-icon :component="EllipsisOutlined" />
               </button>
-              <div v-if="fileActionMenuVisible[item.folderName] && fileActionMenuVisible[item.folderName][subItem.name]" class="file-action-menu-dropdown">
-                <ul>
-                  <li @click="handleFileMenuAction(item.folderName, subItem.name, () => deleteFile(item.folderName, subItem.name))">删除</li>
-                </ul>
               </div>
-            </div>
-          </n-list-item>
         </div>
       </n-list-item>
     </n-list>
+    
+    <!-- 文件夹操作菜单 -->
+    <div v-show="activeMenu && !activeMenu.startsWith('file_')" class="folder-action-menu" :style="menuPosition">
+      <div class="menu-item" @click="renameFolderModal(activeMenu)">
+        <i class="fas fa-edit"></i> 重命名
+      </div>
+      <div class="menu-item" @click="deleteFolder(activeMenu)">
+        <i class="fas fa-trash"></i> 删除
+      </div>
+      <div class="menu-item" @click="handleAutoDisplayAllImages(activeMenu)">
+        <i class="fas fa-eye"></i> 一键展示
+      </div>
+    </div>
+    
+    <!-- 文件操作菜单 -->
+    <div v-show="activeMenu && activeMenu.startsWith('file_')" class="file-menu" :style="menuPosition">
+      <div class="menu-item" @click="$emit('renameFile', activeMenu.split('_')[1], activeMenu.split('_')[2]); activeMenu = ''">
+        <i class="fas fa-edit"></i> 重命名
+      </div>
+      <div class="menu-item" @click="$emit('deleteFile', activeMenu.split('_')[1], activeMenu.split('_')[2]); activeMenu = ''">
+        <i class="fas fa-trash"></i> 删除
+      </div>
+    </div>
   </n-layout-sider>
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits, onMounted, onUnmounted, computed } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { 
   NLayoutSider,
   NButton,
-  NIcon,
   NList,
   NListItem,
-  useMessage,
-  NSpin,
+  NIcon,
   NTooltip,
-  NSpace
+  useMessage,
+  NSpin
 } from 'naive-ui'
 import { 
   ReloadOutlined, 
@@ -140,20 +193,21 @@ import {
   EyeOutlined,
   VideoCameraOutlined,
   CameraOutlined,
-  LeftOutlined,
-  RightOutlined
+  InboxOutlined,
+  UploadOutlined,
+  FolderOpenOutlined
 } from '@vicons/antd'
-import { useViewerStore } from '../stores/viewer'
+import { useViewerStore } from '@/stores/viewer'
 import RecordRTC from 'recordrtc'
 
+const viewerStore = useViewerStore()
+const message = useMessage()
+
+// 添加loading属性
 const props = defineProps({
   fileList: {
     type: Array,
     required: true
-  },
-  selectedFolder: {
-    type: String,
-    default: ""
   },
   expandedFolders: {
     type: Object,
@@ -170,9 +224,18 @@ const props = defineProps({
   fileActionMenuVisible: {
     type: Object,
     required: true
+  },
+  selectedFolder: {
+    type: String,
+    default: ""
+  },
+  loading: {
+    type: Object,
+    default: () => ({})
   }
 })
 
+// 移除折叠相关事件处理函数
 const emit = defineEmits([
   'update:selectedFolder',
   'update:expandedFolders',
@@ -184,26 +247,195 @@ const emit = defineEmits([
   'selectDziItem',
   'deleteFolder',
   'deleteFile',
-  'autoDisplayImages'
+  'autoDisplayImages',
+  'exportFolder',
+  'uploadToFolder',
+  'renameFile'
 ])
 
-const message = useMessage()
+// 菜单位置控制
+const activeMenu = ref('')
+const menuPosition = ref({})
+
+// 录制相关状态
 const isRecording = ref(false)
 const recordingTime = ref(0)
 let timer = null
 let recorder = null
 
-// 添加分析中状态管理
-const analyzingFiles = ref({})
-const loadingResults = ref({})
+// 获取文件列表
+const fetchFileList = () => {
+  emit('fetchFileList')
+}
 
-const showScreenRecorder = ref(false)
+// 切换文件夹展开状态
+const toggleFolder = (folderName) => {
+  emit('toggleFolder', folderName)
+}
 
-// 获取 viewer store
-const viewerStore = useViewerStore()
+// 选择文件
+const selectDziItem = (folderName, fileName) => {
+  emit('selectDziItem', folderName, fileName)
+}
 
+// 显示文件夹操作菜单
+const toggleActionMenu = (folderName, index, event) => {
+  if (activeMenu.value === folderName) {
+    activeMenu.value = ''
+  } else {
+    activeMenu.value = folderName
+    
+    // 计算菜单位置
+    nextTick(() => {
+      const rect = event.target.getBoundingClientRect()
+      const windowWidth = window.innerWidth
+      
+      // 计算左侧位置，如果靠右则向左偏移
+      let leftPosition = rect.left - 100
+      if (leftPosition + 160 > windowWidth) {
+        leftPosition = windowWidth - 180
+      }
+      
+      menuPosition.value = {
+        top: `${rect.bottom + 5}px`,
+        left: `${Math.max(10, leftPosition)}px`
+      }
+      
+      // 确保该文件夹已展开
+      if (props.expandedFolders && !props.expandedFolders[folderName]) {
+        toggleFolder(folderName)
+      }
+      
+      // 为菜单打开的文件夹添加特殊类
+      document.querySelectorAll('.n-list-item').forEach(item => {
+        item.classList.remove('menu-active')
+      })
+      
+      if (event.target.closest('.n-list-item')) {
+        event.target.closest('.n-list-item').classList.add('menu-active')
+      }
+    })
+  }
+  
+  // 点击菜单外区域关闭菜单
+  const handleClickOutside = (e) => {
+    if (!e.target.closest('.folder-action-menu') && !e.target.closest('.action-menu-btn')) {
+      activeMenu.value = ''
+      document.querySelectorAll('.n-list-item').forEach(item => {
+        item.classList.remove('menu-active')
+      })
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }
+  
+  document.addEventListener('click', handleClickOutside)
+}
 
+// 文件菜单相关
+const showFileMenu = (folderName, fileName, event) => {
+  event.stopPropagation()
+  // 切换菜单状态：如果当前活动菜单就是这个文件的菜单，则隐藏
+  const fileMenuId = `file_${folderName}_${fileName}`
+  if (activeMenu.value === fileMenuId) {
+    activeMenu.value = ''
+    return
+  }
+  
+  activeMenu.value = fileMenuId
+  
+  // 计算菜单位置
+  nextTick(() => {
+    const rect = event.target.getBoundingClientRect()
+    const windowWidth = window.innerWidth
+    
+    // 计算左侧位置，如果靠右则向左偏移
+    let leftPosition = rect.left - 100
+    if (leftPosition + 160 > windowWidth) {
+      leftPosition = windowWidth - 180
+    }
+    
+    menuPosition.value = {
+      top: `${rect.bottom + 5}px`,
+      left: `${Math.max(10, leftPosition)}px`
+    }
+    
+    // 为菜单打开的文件项添加特殊类
+    document.querySelectorAll('.dzi-item').forEach(item => {
+      item.classList.remove('menu-active')
+    })
+    
+    if (event.target.closest('.dzi-item')) {
+      event.target.closest('.dzi-item').classList.add('menu-active')
+    }
+  })
+  
+  // 点击菜单外区域关闭菜单
+  const handleClickOutside = (e) => {
+    if (!e.target.closest('.file-menu') && !e.target.closest('.file-action-btn')) {
+      activeMenu.value = ''
+      document.querySelectorAll('.dzi-item').forEach(item => {
+        item.classList.remove('menu-active')
+      })
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }
+  
+  document.addEventListener('click', handleClickOutside)
+}
 
+// 文件夹操作
+const createNewFolder = (parentFolder) => {
+  activeMenu.value = ''
+  emit('createNewFolder', parentFolder)
+}
+
+const renameFolderModal = (folderName) => {
+  activeMenu.value = ''
+  emit('renameFolder', folderName)
+}
+
+const deleteFolder = (folderName) => {
+  activeMenu.value = ''
+  emit('deleteFolder', folderName)
+}
+
+const exportFolder = (folderName) => {
+  activeMenu.value = ''
+  emit('exportFolder', folderName)
+}
+
+// 一键展示所有图片功能
+const handleAutoDisplayAllImages = (folderName) => {
+  // 如果传入了具体文件夹名，则使用该文件夹；否则使用已选择的文件夹
+  const targetFolder = folderName || props.selectedFolder;
+  
+  if (!targetFolder) {
+    message.warning('请先选择一个文件夹');
+    return;
+  }
+  
+  // 确保文件夹展开，以便获取文件列表
+  if (!props.expandedFolders[targetFolder]) {
+    emit('toggleFolder', targetFolder);
+  }
+  
+  // 获取文件夹中的图片文件
+  const files = props.folderDziFiles[targetFolder] || [];
+  
+  // 直接使用所有文件，不再筛选特定图像格式
+  const imageFiles = files;
+  
+  if (imageFiles.length === 0) {
+    message.warning('当前文件夹无可展示的内容');
+    return;
+  }
+  
+  console.log(`一键展示文件夹 ${targetFolder} 中的图片`);
+  // 发出自动展示事件，传递文件夹名和文件列表
+  emit('autoDisplayImages', targetFolder, imageFiles);
+}
+
+// 录制功能
 const startRecordingProcess = async () => {
   try {
     // 1. 拿屏幕视频流（只要 video，不要 audio）
@@ -280,152 +512,11 @@ function cleanup() {
   isRecording.value = false;
   recorder = null;
 }
+
 const toggleRecording = () => {
   if (isRecording.value) stopRecordingProcess()
   else startRecordingProcess()
 }
-
-// 刷新文件列表
-const fetchFileList = () => {
-  emit('fetchFileList')
-}
-
-// 切换文件夹展开状态
-const toggleFolder = (folderName) => {
-  emit('toggleFolder', folderName)
-}
-
-// 选择文件
-const selectDziItem = (folderName, item) => {
-  emit('selectDziItem', folderName, item)
-}
-
-// 切换文件夹操作菜单
-const toggleActionMenu = (folderName) => {
-  const newActionMenuVisible = { ...props.actionMenuVisible }
-  newActionMenuVisible[folderName] = !newActionMenuVisible[folderName]
-  emit('update:actionMenuVisible', newActionMenuVisible)
-}
-
-// 切换文件操作菜单
-const toggleFileActionMenu = (folderName, fileName) => {
-  const newFileActionMenuVisible = { ...props.fileActionMenuVisible }
-  if (!newFileActionMenuVisible[folderName]) {
-    newFileActionMenuVisible[folderName] = {}
-  }
-  newFileActionMenuVisible[folderName][fileName] = !newFileActionMenuVisible[folderName][fileName]
-  emit('update:fileActionMenuVisible', newFileActionMenuVisible)
-}
-
-// 删除文件夹
-const deleteFolder = (folderName) => {
-  emit('deleteFolder', folderName)
-}
-
-// 删除文件
-const deleteFile = (folderName, fileName) => {
-  emit('deleteFile', folderName, fileName)
-}
-
-// 一键展示功能
-const autoDisplayImages = (folderName) => {
-  // 确保文件夹展开，以便获取文件列表
-  if (!props.expandedFolders[folderName]) {
-    emit('toggleFolder', folderName)
-  }
-  
-  // 获取文件夹中的图片文件
-  const files = props.folderDziFiles[folderName] || []
-  
-  if (files.length === 0) {
-    message.warning('当前文件夹无可展示的图片')
-    return
-  }
-  
-  console.log(`一键展示文件夹 ${folderName} 中的图片`)
-  // 发出自动展示事件，传递文件夹名和文件列表
-  emit('autoDisplayImages', folderName, files)
-}
-
-// 一键展示所有图片功能
-const handleAutoDisplayAllImages = () => {
-  if (!props.selectedFolder) {
-    message.warning('请先选择一个文件夹')
-    return
-  }
-  
-  // 确保文件夹展开，以便获取文件列表
-  if (!props.expandedFolders[props.selectedFolder]) {
-    emit('toggleFolder', props.selectedFolder)
-  }
-  
-  // 获取文件夹中的图片文件
-  const files = props.folderDziFiles[props.selectedFolder] || []
-  
-  // 筛选图像文件（根据扩展名）
-  const imageFiles = files.filter(file => {
-    const ext = file.name.split('.').pop().toLowerCase()
-    return ['png', 'jpg', 'jpeg', 'tif', 'tiff'].includes(ext)
-  })
-  
-  if (imageFiles.length === 0) {
-    message.warning('当前文件夹无可展示的图片')
-    return
-  }
-  
-  console.log(`一键展示文件夹 ${props.selectedFolder} 中的图片`)
-  // 发出自动展示事件，传递文件夹名和文件列表
-  emit('autoDisplayImages', props.selectedFolder, imageFiles)
-}
-
-// 处理文件夹菜单操作，执行后关闭菜单
-const handleFolderMenuAction = (actionFn) => {
-  actionFn()
-  // 关闭所有文件夹操作菜单
-  const newActionMenuVisible = {}
-  emit('update:actionMenuVisible', newActionMenuVisible)
-}
-
-// 处理文件菜单操作，执行后关闭菜单
-const handleFileMenuAction = (folderName, fileName, actionFn) => {
-  actionFn()
-  // 关闭特定文件的操作菜单
-  const newFileActionMenuVisible = { ...props.fileActionMenuVisible }
-  if (newFileActionMenuVisible[folderName]) {
-    newFileActionMenuVisible[folderName][fileName] = false
-    emit('update:fileActionMenuVisible', newFileActionMenuVisible)
-  }
-}
-
-// 处理文档点击事件，点击外部区域时关闭所有菜单
-const handleDocumentClick = (event) => {
-  // 检查点击是否发生在菜单按钮或菜单内
-  const isActionButton = event.target.closest('.action-menu-btn') || 
-                        event.target.closest('.file-action-menu-btn')
-  const isActionMenu = event.target.closest('.action-menu-dropdown') || 
-                      event.target.closest('.file-action-menu-dropdown')
-  
-  // 如果点击不在菜单按钮或菜单内，关闭所有菜单
-  if (!isActionButton && !isActionMenu) {
-    const newActionMenuVisible = {}
-    const newFileActionMenuVisible = {}
-    emit('update:actionMenuVisible', newActionMenuVisible)
-    emit('update:fileActionMenuVisible', newFileActionMenuVisible)
-  }
-}
-
-// 在组件挂载时添加点击事件监听
-onMounted(() => {
-  document.addEventListener('click', handleDocumentClick)
-})
-
-// 在组件卸载时移除点击事件监听
-onUnmounted(() => {
-  document.removeEventListener('click', handleDocumentClick)
-  if (timer) {
-    clearInterval(timer)
-  }
-})
 
 const formatTime = (seconds) => {
   const minutes = Math.floor(seconds / 60)
@@ -492,24 +583,155 @@ const saveMultiView = async () => {
     message.destroyAll();
   }
 };
+
+// 获取文件类型样式
+const getFileClass = (fileName) => {
+  if (!fileName) return '';
+  
+  const extension = fileName.split('.').pop().toLowerCase();
+  
+  // 图片文件类型
+  if (['jpg', 'jpeg', 'png', 'gif', 'tiff', 'tif', 'bmp', 'svg'].includes(extension)) {
+    return 'image';
+  }
+  
+  // DZI格式
+  if (extension === 'dzi' || fileName.includes('.dzi')) {
+    return 'dzi';
+
+  }
+  
+  return '';
+}
+
+// 关闭点击文档时所有菜单
+const closeAllMenus = (e) => {
+  if (!e.target.closest('.folder-action-menu') && 
+      !e.target.closest('.action-menu-btn') && 
+      !e.target.closest('.file-menu') &&
+      !e.target.closest('.file-action-btn')) {
+    activeMenu.value = ''
+    document.querySelectorAll('.n-list-item').forEach(item => {
+      item.classList.remove('menu-active')
+    })
+  }
+}
+
+// 添加全局点击监听
+watch(
+  () => activeMenu.value,
+  (newVal) => {
+    if (newVal) {
+      document.addEventListener('click', closeAllMenus)
+    } else {
+      document.removeEventListener('click', closeAllMenus)
+    }
+  }
+)
+
+// 移除折叠相关事件处理函数
+// 移除handleSidebarCollapse和handleSidebarExpand函数
+
+// 在脚本最后添加onUnmounted钩子
+onUnmounted(() => {
+  // 移除事件监听器
+  document.removeEventListener('click', closeAllMenus)
+})
 </script>
 
 <style scoped>
 .file-sider {
-  background: #fff;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+  background: #f7f9fc;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.08);
+  border-right: 1px solid rgba(0,0,0,0.06);
+  position: relative;
+  z-index: 5;
+  transition: all 0.3s ease;
+  width: 320px !important;
+  overflow-x: hidden; /* 防止横向滚动 */
+  padding-right: 0; /* 移除右侧内边距 */
 }
 
 .sidebar-header {
-  padding: 10px;
+  padding: 12px 16px;
   text-align: right;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
+/* 修复文件列表容器的样式，使内容有足够空间 */
 .file-list {
-  padding: 12px;
+  padding: 16px 12px 16px 16px; /* 左右内边距调整 */
   width: 100%;
-  overflow: visible; /* 确保下拉菜单可见 */
+  overflow-y: auto;
+  max-height: calc(100vh - 64px);
+  scrollbar-width: thin;
+  overflow-x: hidden; /* 确保没有横向滚动 */
+  box-sizing: border-box;
+}
+
+.file-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.file-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.file-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 优化n-list-item列表项布局 */
+:deep(.n-list-item) {
+  background: #ffffff;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible !important;
+  border: 1px solid rgba(0,0,0,0.04);
+  position: relative;
+  z-index: 1;
+  padding: 0;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 310px; /* 确保不会超出侧边栏宽度 */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+:deep(.n-list-item:hover) {
+  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+  z-index: 5;
+}
+
+:deep(.n-list-item.selected) {
+  background: rgba(24, 144, 255, 0.05);
+  border-left: 4px solid #1890ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+  padding-left: 12px; /* 补偿border-left的宽度 */
+}
+
+:deep(.n-list-item.folder-expanded) {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  z-index: 5;
+  background: linear-gradient(to right, rgba(24, 144, 255, 0.05), rgba(24, 144, 255, 0.02));
+}
+
+/* 菜单显示时提高z-index */
+:deep(.n-list-item.menu-active) {
+  z-index: 10;
+  box-shadow: 0 10px 24px rgba(24, 144, 255, 0.15);
 }
 
 .folder-item {
@@ -517,177 +739,512 @@ const saveMultiView = async () => {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  overflow: visible; /* 改为visible，确保下拉菜单可见 */
-  position: relative; /* 添加相对定位，为绝对定位的子元素提供参考 */
+  position: relative;
+  padding: 12px 10px 12px 16px; /* 进一步调整右侧内边距 */
+  border-radius: 6px;
+  transition: all 0.25s ease;
+  overflow: hidden; /* 确保内容不会溢出 */
+  box-sizing: border-box; /* 确保padding不增加宽度 */
+}
+
+.folder-item:hover {
+  background-color: rgba(24, 144, 255, 0.05);
+}
+
+.folder-name-container {
+  flex: 1;
+  min-width: 0; /* 确保可以被压缩 */
+  padding-right: 8px; /* 减少右侧内边距 */
+  overflow: hidden; /* 确保内容不会溢出 */
+  max-width: calc(100% - 80px); /* 调整为更合适的宽度 */
 }
 
 .folder-name {
   cursor: pointer;
-  font-weight: bold;
-  max-width: 170px; /* 减小宽度，避免与操作按钮重叠 */
+  font-weight: 600;
+  width: 100%; /* 使用父容器的宽度 */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: inline-block;
+  display: block; /* 改为块级元素填充容器 */
+  color: #1a2b4b;
+  padding-left: 5px; /* 减小左侧padding */
+  position: relative;
+  transition: all 0.2s ease;
+  box-sizing: border-box; /* 确保padding不增加宽度 */
+  margin-right: 0; /* 移除右侧边距 */
 }
 
-.dzi-file-list {
-  margin-top: 8px;
-  padding-left: 0px;
+/* 添加文件夹展开指示器 */
+.folder-expanded .folder-name::after {
+  content: '';
+  position: absolute;
+  right: -15px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  background-color: #1890ff;
+  border-radius: 50%;
 }
 
-.dzi-item {
-  cursor: pointer;
-  padding: 4px 0;
-}
-
-.selected {
-  background: #f0faff;
-  border-left: 3px solid #1890ff;
-}
-
+/* 按钮操作区 */
 .toggle-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px; /* 增加按钮之间的间距 */
+  flex-shrink: 0; /* 确保按钮组不被压缩 */
   position: relative;
-  display: inline-flex;
-  margin-left: 10px;
-  min-width: 60px; /* 确保操作按钮区域有足够的宽度 */
-  justify-content: flex-end; /* 按钮靠右对齐 */
+  z-index: 10;
+  min-width: 50px; /* 确保有足够空间 */
+  padding-right: 5px; /* 略微调整右侧内边距 */
+  margin-left: auto; /* 确保按钮靠右对齐 */
 }
 
-.action-menu-container {
-  position: relative;
-  display: inline-block;
-  z-index: 999;
+/* 调整按钮大小，确保完全显示 */
+.toggle-folder-btn {
+  border: none !important;
+  background: rgba(24, 144, 255, 0.08) !important;
+  color: #1890ff !important;
+  transition: all 0.2s ease !important;
+  width: 32px !important; 
+  height: 32px !important; 
+  border-radius: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  flex-shrink: 0;
+}
+
+.toggle-folder-btn:hover {
+  background: rgba(24, 144, 255, 0.15) !important;
+  /* 移除这个向下移动的效果 */
+  /* transform: translateY(-1px); */
+}
+
+.toggle-folder-btn.expanded {
+  background: rgba(24, 144, 255, 0.2) !important;
+  color: #1890ff !important;
+  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.2);
 }
 
 .action-menu-btn {
-  background: none;
+  background: rgba(0, 0, 0, 0.04);
   border: none;
   cursor: pointer;
   font-size: 16px;
-  width: 24px;
-  height: 24px;
+  width: 32px; 
+  height: 32px; 
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #8c9bab;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
-.action-menu-dropdown {
-  position: absolute;
-  top: 0; /* 改为顶部对齐 */
-  right: 100%; /* 改为右侧对齐，显示在按钮左侧 */
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  z-index: 1000; /* 增加z-index，确保在最上层 */
-  min-width: 80px;
-  margin-right: 5px; /* 与按钮保持一定距离 */
+.action-menu-btn:hover {
+  background: rgba(24, 144, 255, 0.1);
+  color: #1890ff;
+  /* 移除这个向下移动的效果 */
+  /* transform: translateY(-1px); */
 }
 
-.action-menu-dropdown ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* 为所有按钮添加更好的悬浮效果，不影响位置 */
+.toggle-folder-btn:hover, .action-menu-btn:hover {
+  box-shadow: 0 2px 5px rgba(24, 144, 255, 0.25);
 }
 
-.action-menu-dropdown li {
-  padding: 6px 12px;
+/* 优化文件项的样式 */
+.dzi-item {
   cursor: pointer;
-}
-
-.action-menu-dropdown li:hover {
-  background-color: #f5f5f5;
-}
-
-.file-item {
+  padding: 10px 8px 10px 14px; /* 右侧减少内边距 */
+  transition: all 0.25s ease;
+  border-radius: 8px;
+  margin-bottom: 8px;
   position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.03);
   display: flex;
   align-items: center;
-  width: 100%;
-  overflow: visible; /* 改为visible，确保下拉菜单可见 */
+  overflow: hidden; /* 确保内容不会溢出 */
+  width: 100%; /* 使用全宽 */
+  box-sizing: border-box; /* 确保padding不增加宽度 */
 }
 
+.dzi-item:hover {
+  background: rgba(24, 144, 255, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.dzi-item:last-child {
+  margin-bottom: 0;
+}
+
+/* 文件项样式修改 - 删除图标并定格文本 */
 .file-name {
   flex: 1;
-  padding-right: 40px; /* 增加右侧内边距，为操作按钮留出更多空间 */
-  padding-left: 16px; /* 添加缩进效果 */
+  padding-right: 40px; /* 为右侧操作按钮预留空间 */
+  padding-left: 5px; /* 减小左侧内边距，定格与文件夹名对齐 */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px; /* 减小宽度，避免与操作按钮重叠 */
-  display: inline-block;
+  width: calc(100% - 40px); /* 考虑按钮宽度 */
+  display: block; /* 改为块级元素 */
+  font-size: 14px;
+  color: #4a5568;
+  transition: all 0.2s ease;
+  position: relative;
+  box-sizing: border-box; /* 确保padding不增加宽度 */
+  max-width: none; /* 覆盖之前的限制 */
+  margin-right: 0; /* 移除右侧边距 */
 }
 
-.file-action-menu-container {
+/* 文件操作按钮位置调整 */
+.file-action-btn {
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+  position: absolute; /* 绝对定位，不影响文本布局 */
+  right: 8px; /* 再调整与父元素右侧的间距 */
+  top: 50%; /* 垂直居中 */
+  transform: translateY(-50%); /* 垂直居中 */
+}
+
+/* 添加一些额外的优化 */
+:deep(.n-layout-sider-toggle-button) {
+  width: 24px !important;
+  height: 40px !important;
+  background-color: #f7f9fc !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 0 4px 4px 0 !important;
+  z-index: 100 !important; /* 确保始终可见 */
+}
+
+/* 增强长名称显示 */
+.folder-name {
+  position: relative;
+  word-break: keep-all; /* 防止单词被截断 */
+  user-select: none; /* 防止文本被选中，提高用户体验 */
+}
+
+/* 增强视觉分隔 - 这部分样式已合并到上面 */
+
+/* 添加文件图标 */
+.file-name::before {
+  content: '';
   position: absolute;
-  right: 0;
+  left: 0;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 999;
-  min-width: 24px; /* 确保菜单按钮始终可见 */
-  margin-left: 8px; /* 与文件名保持一定距离 */
+  width: 16px;
+  height: 16px;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%234a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>') no-repeat center center;
 }
 
-.file-action-menu-btn {
-  background: none;
-  border: none;
+/* 特定文件类型图标 */
+.file-name.image::before {
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%234a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>') no-repeat center center;
+}
+
+.file-name.dzi::before {
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%231890ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon><line x1="12" y1="22" x2="12" y2="15.5"></line><polyline points="22 8.5 12 15.5 2 8.5"></polyline></svg>') no-repeat center center;
+}
+
+/* 文件夹和文件操作菜单样式 */
+.folder-action-menu,
+.file-menu {
+  position: fixed;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 8px 0;
+  z-index: 100;
+  min-width: 160px;
+  animation: fadeIn 0.2s ease-out;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.menu-item {
+  padding: 10px 16px;
   cursor: pointer;
-  font-size: 16px;
-  width: 24px;
-  height: 24px;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
 }
 
-.file-action-menu-dropdown {
-  position: absolute;
-  top: 0; /* 改为顶部对齐 */
-  right: 100%; /* 改为右侧对齐，显示在按钮左侧 */
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  z-index: 1000; /* 增加z-index，确保在最上层 */
-  min-width: 80px;
-  margin-right: 5px; /* 与按钮保持一定距离 */
-}
-
-.file-action-menu-dropdown ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.file-action-menu-dropdown li {
-  padding: 6px 12px;
-  cursor: pointer;
-}
-
-.file-action-menu-dropdown li:hover {
-  background-color: #f5f5f5;
-}
-
-
-
-.action-menu-dropdown li,
-.file-action-menu-dropdown li {
-  white-space: nowrap;
-  padding: 6px 12px;
-}
-
-.analyzing-indicator {
-  margin-left: 8px;
-  display: inline-block;
-}
-
-.file-item.analyzing {
-  background-color: #f0faff;
-}
-
-.file-item.analyzing .file-name {
+.menu-item i {
+  font-size: 14px;
   color: #1890ff;
-  font-weight: bold;
 }
+
+.menu-item:hover {
+  background-color: rgba(24, 144, 255, 0.05);
+  color: #1890ff;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 添加空文件夹样式 */
+.empty-folder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+  color: #8c9bab;
+  font-size: 14px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  min-height: 120px;
+}
+
+.empty-folder .n-icon {
+  color: #d9e1f2;
+  margin-bottom: 8px;
+}
+
+.empty-folder span {
+  margin-bottom: 12px;
+}
+
+/* 加载状态样式 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  gap: 12px;
+  color: #8c9bab;
+}
+
+/* 改进文件列表滚动 */
+/* 调整文件项列表容器 */
+.dzi-file-list {
+  margin-top: 4px;
+  padding: 8px 8px 8px 10px; /* 调整左侧内边距 */
+  background: #f9fafc;
+  border-top: 1px solid rgba(0,0,0,0.04);
+  position: relative;
+  z-index: 1;
+  animation: slideDown 0.3s ease-out;
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden; /* 防止横向滚动 */
+  scrollbar-width: thin;
+  width: 100%; /* 使用全宽 */
+  box-sizing: border-box;
+}
+
+.dzi-file-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dzi-file-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.dzi-file-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 添加文件操作效果 */
+.dzi-item {
+  cursor: pointer;
+  padding: 10px 8px 10px 5px; /* 调整左侧内边距与文件夹对齐 */
+  transition: all 0.25s ease;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  display: flex;
+  align-items: center;
+  overflow: hidden; /* 确保内容不会溢出 */
+  width: 100%; /* 使用全宽 */
+  box-sizing: border-box; /* 确保padding不增加宽度 */
+}
+
+/* 恢复hover效果 */
+.dzi-item:hover {
+  background: rgba(24, 144, 255, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* 恢复最后一个item的margin */
+.dzi-item:last-child {
+  margin-bottom: 0;
+}
+
+/* 选中文件样式 */
+.dzi-item.selected {
+  background: rgba(24, 144, 255, 0.1);
+  border-left: 3px solid #1890ff;
+  padding-left: 5px; /* 保持与其他项左侧对齐 */
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+}
+
+/* 悬浮时显示操作按钮 */
+.file-action-btn {
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+  position: absolute; /* 绝对定位，不影响文本布局 */
+  right: 8px; /* 再调整与父元素右侧的间距 */
+  top: 50%; /* 垂直居中 */
+  transform: translateY(-50%); /* 垂直居中 */
+}
+
+.dzi-item:hover .file-action-btn {
+  opacity: 1;
+}
+
+/* 空文件列表状态 */
+.empty-explorer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  height: 300px;
+}
+
+.empty-explorer .n-icon {
+  color: #d9e1f2;
+  margin-bottom: 16px;
+}
+
+.empty-explorer h3 {
+  font-size: 16px;
+  margin: 0 0 8px 0;
+  color: #4a5568;
+  font-weight: 600;
+}
+
+.empty-explorer p {
+  margin: 0 0 20px 0;
+  color: #8c9bab;
+  font-size: 14px;
+}
+
+/* 清理重复样式，保留正确的展开按钮样式 */
+/* 删除旧的、重复的收起按钮样式 */
+/* 确保收起后展开按钮可见 */
+:deep(.n-layout-sider-collapsed .n-layout-toggle-button) {
+  display: none !important; /* 隐藏按钮，因为我们不再需要折叠功能 */
+}
+
+/* 修复侧边栏CSS，去除收起相关样式 */
+:deep(.n-layout-sider) {
+  max-width: 320px !important;
+  min-width: 320px !important;
+  width: 320px !important;
+  flex: 0 0 320px !important;
+  z-index: 100 !important;
+}
+
+/* 补充重要的样式 */
+/* 确保收起后展开按钮可见 - 已不需要 */
+:deep(.n-layout-sider-collapsed .n-layout-toggle-button) {
+  display: none !important; /* 隐藏按钮，因为我们不再需要折叠功能 */
+}
+
+:deep(.n-layout-sider-collapsed .n-layout-toggle-bar) {
+  display: none !important; /* 隐藏按钮容器 */
+}
+
+/* 设置收起状态宽度 - 不再需要 */
+:deep(.n-layout-sider-collapsed) {
+  width: 320px !important; /* 保持与正常状态一致 */
+  min-width: 320px !important;
+  overflow: visible !important;
+}
+
+/* 删除文件夹图标，使文本靠左 */
+.folder-name {
+  cursor: pointer;
+  font-weight: 600;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  color: #1a2b4b;
+  padding-left: 5px; /* 减小左侧padding */
+  position: relative;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  margin-right: 0;
+}
+
+/* 移除文件夹图标 */
+.folder-name::before {
+  display: none; /* 隐藏图标 */
+}
+
+/* 确保侧边栏内容容器正确显示 */
+:deep(.n-layout-sider-content) {
+  overflow-x: hidden !important; /* 强制隐藏横向滚动条 */
+  width: 100%; /* 使用全宽 */
+  padding-right: 0; /* 移除右侧内边距，避免重复设置 */
+}
+
+/* 改善列表项的缩进和边距 */
+:deep(.n-list-item__main) {
+  overflow: hidden !important; /* 强制隐藏溢出内容 */
+  width: 100%; /* 使用全宽 */
+  padding: 0; /* 移除内边距 */
+  margin: 0; /* 移除外边距 */
+}
+
+/* 当文件项的菜单激活时应用的样式 */
+.dzi-item.menu-active {
+  z-index: 10;
+  box-shadow: 0 3px 10px rgba(24, 144, 255, 0.2);
+  background: rgba(24, 144, 255, 0.05);
+}
+
+/* 修复文件图标 */
+.file-name::before {
+  display: none; /* 同样移除文件图标 */
+}
+
+/* 确保文件图标不显示 */
+.file-name::before, 
+.file-name.image::before, 
+.file-name.dzi::before {
+  display: none !important; /* 强制隐藏所有类型的图标 */
+}
+
 </style> 
