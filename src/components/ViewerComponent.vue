@@ -323,16 +323,185 @@ const saveMultiView = async () => {
     const html2canvasModule = await import('html2canvas');
     const html2canvas = html2canvasModule.default;
     
+    // 创建临时样式表强制隐藏所有OpenSeadragon控件
+    const tempStyle = document.createElement('style');
+    tempStyle.innerHTML = `
+      .openseadragon-container .openseadragon-controls,
+      .openseadragon-container .openseadragon-navigator,
+      .openseadragon-container button,
+      .openseadragon-container .zoomIn,
+      .openseadragon-container .zoomOut,
+      .openseadragon-container .home,
+      .openseadragon-container .full-page,
+      .openseadragon-container div[class^="osd"],
+      .openseadragon-container .navigator,
+      .openseadragon-canvas + div {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+    `;
+    document.head.appendChild(tempStyle);
+    
+    // 临时隐藏所有图像标题栏
+    const titleBars = viewerContainerRef.value.querySelectorAll('.image-title-bar');
+    const closeBtns = viewerContainerRef.value.querySelectorAll('.close-image-wrapper');
+    const placeholders = viewerContainerRef.value.querySelectorAll('.placeholder .empty-state-content');
+    const annotationToggles = viewerContainerRef.value.querySelectorAll('.annotation-toggle');
+    
+    // OpenSeadragon导航控件
+    const osdControls = document.querySelectorAll('.openseadragon-controls, .openseadragon-container div[class^="osd"]');
+    const osdNavControls = document.querySelectorAll('.navigator, .openseadragon-navigator');
+    const osdButtons = document.querySelectorAll('.openseadragon-container button, .openseadragon-container .openseadragon-container button');
+    const osdZoomIcons = document.querySelectorAll('.openseadragon-container div.zoomIn, .openseadragon-container div.zoomOut, .openseadragon-container div.home, .openseadragon-container div.full-page');
+    
+    // 被选中的查看器框
+    const selectedViewers = viewerContainerRef.value.querySelectorAll('.selected-viewer');
+    
+    // 存储原始显示状态和样式
+    const titleBarsDisplay = [];
+    const closeBtnsDisplay = [];
+    const placeholdersHTML = [];
+    const annotationTogglesDisplay = [];
+    const osdControlsDisplay = [];
+    const osdNavControlsDisplay = [];
+    const osdButtonsDisplay = [];
+    const selectedViewersBorder = [];
+    const selectedViewersBoxShadow = [];
+    
+    // 隐藏标题栏
+    titleBars.forEach((bar, index) => {
+      titleBarsDisplay[index] = bar.style.display;
+      bar.style.display = 'none';
+    });
+    
+    // 隐藏关闭按钮
+    closeBtns.forEach((btn, index) => {
+      closeBtnsDisplay[index] = btn.style.display;
+      btn.style.display = 'none';
+    });
+    
+    // 简化占位内容
+    placeholders.forEach((placeholder, index) => {
+      placeholdersHTML[index] = placeholder.innerHTML;
+      placeholder.innerHTML = '';
+    });
+    
+    // 隐藏标注按钮
+    annotationToggles.forEach((toggle, index) => {
+      annotationTogglesDisplay[index] = toggle.style.display;
+      toggle.style.display = 'none';
+    });
+    
+    // 隐藏OpenSeadragon控件
+    osdControls.forEach((control, index) => {
+      osdControlsDisplay[index] = control.style.display;
+      control.style.display = 'none';
+    });
+    
+    osdNavControls.forEach((control, index) => {
+      osdNavControlsDisplay[index] = control.style.display;
+      control.style.display = 'none';
+    });
+    
+    osdButtons.forEach((button, index) => {
+      osdButtonsDisplay[index] = button.style.display;
+      button.style.display = 'none';
+    });
+    
+    // 移除选中框的高亮效果
+    selectedViewers.forEach((viewer, index) => {
+      selectedViewersBorder[index] = viewer.style.boxShadow;
+      selectedViewersBoxShadow[index] = viewer.style.border;
+      
+      // 移除选择高亮
+      viewer.style.boxShadow = 'none';
+      viewer.style.border = '1px solid rgba(0, 0, 0, 0.03)';
+      viewer.classList.remove('selected-viewer'); // 临时移除类
+    });
+    
+    // 获取所有查看器框
+    const viewerWrappers = viewerContainerRef.value.querySelectorAll('.viewer-wrapper');
+    const wrapperBackgrounds = [];
+    
+    // 统一背景色为白色，增强纯净感
+    viewerWrappers.forEach((wrapper, index) => {
+      wrapperBackgrounds[index] = wrapper.style.background;
+      wrapper.style.background = 'white';
+    });
+    
+    // 确保页面上的所有OpenSeadragon控件已经隐藏
     // 给浏览器一些时间来更新UI
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // 使用html2canvas捕获当前视图
     const canvas = await html2canvas(viewerContainerRef.value, {
       scale: 2, // 提高分辨率，生成更高清的图片
       useCORS: true, // 允许跨域图片
       allowTaint: true, // 允许加载跨域图片
-      backgroundColor: '#f5f7f9', // 与背景颜色一致
-      logging: false // 关闭日志
+      backgroundColor: '#ffffff', // 纯白色背景
+      logging: false, // 关闭日志
+      removeContainer: true, // 临时移除容器
+      ignoreElements: (element) => {
+        // 忽略所有控件类元素
+        return element.classList && (
+          element.classList.contains('openseadragon-controls') ||
+          element.classList.contains('openseadragon-navigator') ||
+          element.classList.contains('annotation-toggle') ||
+          element.classList.contains('close-image-wrapper') ||
+          element.classList.contains('image-title-bar') ||
+          element.tagName === 'BUTTON'
+        );
+      }
+    });
+    
+    // 移除临时样式表
+    document.head.removeChild(tempStyle);
+    
+    // 恢复标题栏显示
+    titleBars.forEach((bar, index) => {
+      bar.style.display = titleBarsDisplay[index];
+    });
+    
+    // 恢复关闭按钮显示
+    closeBtns.forEach((btn, index) => {
+      btn.style.display = closeBtnsDisplay[index];
+    });
+    
+    // 恢复占位内容
+    placeholders.forEach((placeholder, index) => {
+      placeholder.innerHTML = placeholdersHTML[index];
+    });
+    
+    // 恢复标注按钮显示
+    annotationToggles.forEach((toggle, index) => {
+      toggle.style.display = annotationTogglesDisplay[index];
+    });
+    
+    // 恢复OpenSeadragon控件
+    osdControls.forEach((control, index) => {
+      control.style.display = osdControlsDisplay[index];
+    });
+    
+    osdNavControls.forEach((control, index) => {
+      control.style.display = osdNavControlsDisplay[index];
+    });
+    
+    osdButtons.forEach((button, index) => {
+      button.style.display = osdButtonsDisplay[index];
+    });
+    
+    // 恢复选中框的高亮效果
+    selectedViewers.forEach((viewer, index) => {
+      viewer.style.boxShadow = selectedViewersBorder[index];
+      viewer.style.border = selectedViewersBoxShadow[index];
+      viewer.classList.add('selected-viewer'); // 恢复类
+    });
+    
+    // 恢复查看器框背景
+    viewerWrappers.forEach((wrapper, index) => {
+      wrapper.style.background = wrapperBackgrounds[index];
     });
     
     // 创建下载链接
@@ -360,7 +529,7 @@ const saveMultiView = async () => {
       // 释放URL对象
       URL.revokeObjectURL(link.href);
       
-      message.success('多视图图片已保存');
+      message.success('纯图像已保存');
     }, 'image/png', 1.0);
   } catch (error) {
     console.error('保存多视图出错:', error);

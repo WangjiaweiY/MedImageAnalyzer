@@ -88,7 +88,7 @@ export const useViewerStore = defineStore('viewer', {
         gestureSettingsMouse: {
           scrollToZoom: true
         },
-        showNavigator: true,
+        showNavigator: false,
         fullscreen: false,
         // 添加自动调整视口的配置
         autoResize: true,
@@ -165,7 +165,7 @@ export const useViewerStore = defineStore('viewer', {
         gestureSettingsMouse: {
           scrollToZoom: true
         },
-        showNavigator: true,
+        showNavigator: false,
         fullscreen: false,
         // 添加自动调整视口的配置
         autoResize: true,
