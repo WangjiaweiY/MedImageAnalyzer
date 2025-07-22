@@ -95,28 +95,15 @@ export const useViewerStore = defineStore('viewer', {
         defaultZoomLevel: 0,
         maxZoomPixelRatio: 2,
         minZoomLevel: 0.1,
-        visibilityRatio: 0.9
-        // 移除homeFillsViewer选项，以便自定义调整
+        visibilityRatio: 0.9,
+        homeFillsViewer: true
       })
       
       // 添加图像打开事件处理器，只在高度方向铺满
       this.viewers[this.selectedViewerIndex].addHandler('open', (event) => {
         const viewer = this.viewers[this.selectedViewerIndex];
-        // 获取图像尺寸
-        const imageBounds = viewer.world.getItemAt(0).getBounds();
-        const imageAspect = imageBounds.width / imageBounds.height;
-        
-        // 获取容器尺寸
-        const containerWidth = viewer.container.clientWidth;
-        const containerHeight = viewer.container.clientHeight;
-        const containerAspect = containerWidth / containerHeight;
-        
-        // 计算基于高度的缩放比例
-        const zoom = 1 / imageBounds.height;
-        
-        // 应用缩放和居中
-        viewer.viewport.zoomTo(zoom, null, true);
-        viewer.viewport.panTo(new OpenSeadragon.Point(0.5, 0.5), true);
+        // 使用goHome方法实现类似于点击"回归中心"按钮的效果
+        viewer.viewport.goHome(true);
       })
       
       // 默认启用同步
@@ -172,28 +159,15 @@ export const useViewerStore = defineStore('viewer', {
         defaultZoomLevel: 0,
         maxZoomPixelRatio: 2,
         minZoomLevel: 0.1,
-        visibilityRatio: 0.9
-        // 移除homeFillsViewer选项，以便自定义调整
+        visibilityRatio: 0.9,
+        homeFillsViewer: true
       })
       
       // 添加图像打开事件处理器，只在高度方向铺满
       this.viewers[index].addHandler('open', (event) => {
         const viewer = this.viewers[index];
-        // 获取图像尺寸
-        const imageBounds = viewer.world.getItemAt(0).getBounds();
-        const imageAspect = imageBounds.width / imageBounds.height;
-        
-        // 获取容器尺寸
-        const containerWidth = viewer.container.clientWidth;
-        const containerHeight = viewer.container.clientHeight;
-        const containerAspect = containerWidth / containerHeight;
-        
-        // 计算基于高度的缩放比例
-        const zoom = 1 / imageBounds.height;
-        
-        // 应用缩放和居中
-        viewer.viewport.zoomTo(zoom, null, true);
-        viewer.viewport.panTo(new OpenSeadragon.Point(0.5, 0.5), true);
+        // 使用goHome方法实现类似于点击"回归中心"按钮的效果
+        viewer.viewport.goHome(true);
       })
       
       // 默认启用同步
@@ -261,15 +235,8 @@ export const useViewerStore = defineStore('viewer', {
           viewer.addHandler('open', () => {
             // 延迟一点点执行以确保图像完全加载
             setTimeout(() => {
-              // 获取图像尺寸
-              const imageBounds = viewer.world.getItemAt(0).getBounds();
-              
-              // 计算基于高度的缩放比例
-              const zoom = 1 / imageBounds.height;
-              
-              // 应用缩放和居中
-              viewer.viewport.zoomTo(zoom, null, true);
-              viewer.viewport.panTo(new OpenSeadragon.Point(0.5, 0.5), true);
+              // 使用goHome方法实现类似于点击"回归中心"按钮的效果
+              viewer.viewport.goHome(true);
             }, 100);
           });
           
