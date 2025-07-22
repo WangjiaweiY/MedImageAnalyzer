@@ -1,57 +1,76 @@
 <template>
   <n-layout-sider
-    :width="320"
-    :collapsed-width="320"
+    :width="isCollapsed ? 64 : 320"
+    :collapsed-width="64"
     :show-trigger="false"
     class="file-sider"
-    :style="{ width: '320px !important' }"
+    :style="{ width: isCollapsed ? '64px !important' : '320px !important' }"
   >
     <!-- 侧边栏头部 -->
     <div class="sidebar-header">
-      <n-button circle type="primary" size="small" @click="fetchFileList">
-        <n-icon><ReloadOutlined /></n-icon>
-      </n-button>
+      <!-- 添加展开/收起按钮 -->
       <n-tooltip trigger="hover" placement="bottom">
         <template #trigger>
-          <n-button circle type="info" size="small" @click="handleAutoDisplayAllImages()" style="margin-left: 8px;">
-            <n-icon><EyeOutlined /></n-icon>
+          <n-button circle type="default" size="small" @click="toggleSidebar" class="collapse-btn">
+            <n-icon>
+              <template v-if="isCollapsed">
+                <MenuUnfoldOutlined />
+              </template>
+              <template v-else>
+                <MenuFoldOutlined />
+              </template>
+            </n-icon>
           </n-button>
         </template>
-        一键展示图片
+        {{ isCollapsed ? '展开侧边栏' : '收起侧边栏' }}
       </n-tooltip>
       
-      <n-tooltip trigger="hover" placement="bottom">
-        <template #trigger>
-          <n-button 
-            circle 
-            :type="isRecording ? 'error' : 'warning'" 
-            size="small" 
-            @click="toggleRecording" 
-            style="margin-left: 8px;"
-          >
-            <n-icon><VideoCameraOutlined /></n-icon>
-          </n-button>
-        </template>
-        {{ isRecording ? `停止录制 (${formatTime(recordingTime)})` : '开始录制' }}
-      </n-tooltip>
-      <n-tooltip trigger="hover" placement="bottom">
-        <template #trigger>
-          <n-button 
-            circle 
-            type="success" 
-            size="small" 
-            @click="saveMultiView"
-            style="margin-left: 8px;"
-          >
-            <n-icon><CameraOutlined /></n-icon>
-          </n-button>
-        </template>
-        保存当前视图
-      </n-tooltip>
+      <template v-if="!isCollapsed">
+        <n-button circle type="primary" size="small" @click="fetchFileList">
+          <n-icon><ReloadOutlined /></n-icon>
+        </n-button>
+        <n-tooltip trigger="hover" placement="bottom">
+          <template #trigger>
+            <n-button circle type="info" size="small" @click="handleAutoDisplayAllImages()" style="margin-left: 8px;">
+              <n-icon><EyeOutlined /></n-icon>
+            </n-button>
+          </template>
+          一键展示图片
+        </n-tooltip>
+        
+        <n-tooltip trigger="hover" placement="bottom">
+          <template #trigger>
+            <n-button 
+              circle 
+              :type="isRecording ? 'error' : 'warning'" 
+              size="small" 
+              @click="toggleRecording" 
+              style="margin-left: 8px;"
+            >
+              <n-icon><VideoCameraOutlined /></n-icon>
+            </n-button>
+          </template>
+          {{ isRecording ? `停止录制 (${formatTime(recordingTime)})` : '开始录制' }}
+        </n-tooltip>
+        <n-tooltip trigger="hover" placement="bottom">
+          <template #trigger>
+            <n-button 
+              circle 
+              type="success" 
+              size="small" 
+              @click="saveMultiView"
+              style="margin-left: 8px;"
+            >
+              <n-icon><CameraOutlined /></n-icon>
+            </n-button>
+          </template>
+          保存当前视图
+        </n-tooltip>
+      </template>
     </div>
     
     <!-- 文件列表 -->
-    <n-list class="file-list" hoverable>
+    <n-list class="file-list" hoverable v-if="!isCollapsed">
       <!-- 文件列表为空时的占位符 -->
       <div v-if="!fileList || fileList.length === 0" class="empty-explorer">
         <n-icon :component="FolderOpenOutlined" :size="40" />
@@ -195,7 +214,9 @@ import {
   CameraOutlined,
   InboxOutlined,
   UploadOutlined,
-  FolderOpenOutlined
+  FolderOpenOutlined,
+  MenuUnfoldOutlined,
+  MenuFoldOutlined
 } from '@vicons/antd'
 import { useViewerStore } from '@/stores/viewer'
 import RecordRTC from 'recordrtc'
@@ -263,6 +284,9 @@ const recordingTime = ref(0)
 let timer = null
 let recorder = null
 
+// 侧边栏折叠状态
+const isCollapsed = ref(false)
+
 // 获取文件列表
 const fetchFileList = () => {
   emit('fetchFileList')
@@ -280,60 +304,52 @@ const selectDziItem = (folderName, fileName) => {
 
 // 显示文件夹操作菜单
 const toggleActionMenu = (folderName, index, event) => {
+  event.stopPropagation() // 阻止事件冒泡
+  
+  // 如果点击的是当前已显示的菜单，则关闭
   if (activeMenu.value === folderName) {
     activeMenu.value = ''
-  } else {
-    activeMenu.value = folderName
+    return
+  }
+  
+  activeMenu.value = folderName
+  
+  // 计算菜单位置
+  nextTick(() => {
+    const rect = event.target.getBoundingClientRect()
+    const windowWidth = window.innerWidth
     
-    // 计算菜单位置
-    nextTick(() => {
-      const rect = event.target.getBoundingClientRect()
-      const windowWidth = window.innerWidth
-      
-      // 计算左侧位置，如果靠右则向左偏移
-      let leftPosition = rect.left - 100
-      if (leftPosition + 160 > windowWidth) {
-        leftPosition = windowWidth - 180
-      }
-      
-      menuPosition.value = {
-        top: `${rect.bottom + 5}px`,
-        left: `${Math.max(10, leftPosition)}px`
-      }
-      
-      // 确保该文件夹已展开
-      if (props.expandedFolders && !props.expandedFolders[folderName]) {
-        toggleFolder(folderName)
-      }
-      
-      // 为菜单打开的文件夹添加特殊类
-      document.querySelectorAll('.n-list-item').forEach(item => {
-        item.classList.remove('menu-active')
-      })
-      
-      if (event.target.closest('.n-list-item')) {
-        event.target.closest('.n-list-item').classList.add('menu-active')
-      }
-    })
-  }
-  
-  // 点击菜单外区域关闭菜单
-  const handleClickOutside = (e) => {
-    if (!e.target.closest('.folder-action-menu') && !e.target.closest('.action-menu-btn')) {
-      activeMenu.value = ''
-      document.querySelectorAll('.n-list-item').forEach(item => {
-        item.classList.remove('menu-active')
-      })
-      document.removeEventListener('click', handleClickOutside)
+    // 计算左侧位置，如果靠右则向左偏移
+    let leftPosition = rect.left - 100
+    if (leftPosition + 160 > windowWidth) {
+      leftPosition = windowWidth - 180
     }
-  }
-  
-  document.addEventListener('click', handleClickOutside)
+    
+    menuPosition.value = {
+      top: `${rect.bottom + 5}px`,
+      left: `${Math.max(10, leftPosition)}px`
+    }
+    
+    // 确保该文件夹已展开
+    if (props.expandedFolders && !props.expandedFolders[folderName]) {
+      toggleFolder(folderName)
+    }
+    
+    // 为菜单打开的文件夹添加特殊类
+    document.querySelectorAll('.n-list-item').forEach(item => {
+      item.classList.remove('menu-active')
+    })
+    
+    if (event.target.closest('.n-list-item')) {
+      event.target.closest('.n-list-item').classList.add('menu-active')
+    }
+  })
 }
 
 // 文件菜单相关
 const showFileMenu = (folderName, fileName, event) => {
   event.stopPropagation()
+  
   // 切换菜单状态：如果当前活动菜单就是这个文件的菜单，则隐藏
   const fileMenuId = `file_${folderName}_${fileName}`
   if (activeMenu.value === fileMenuId) {
@@ -368,19 +384,6 @@ const showFileMenu = (folderName, fileName, event) => {
       event.target.closest('.dzi-item').classList.add('menu-active')
     }
   })
-  
-  // 点击菜单外区域关闭菜单
-  const handleClickOutside = (e) => {
-    if (!e.target.closest('.file-menu') && !e.target.closest('.file-action-btn')) {
-      activeMenu.value = ''
-      document.querySelectorAll('.dzi-item').forEach(item => {
-        item.classList.remove('menu-active')
-      })
-      document.removeEventListener('click', handleClickOutside)
-    }
-  }
-  
-  document.addEventListener('click', handleClickOutside)
 }
 
 // 文件夹操作
@@ -606,28 +609,55 @@ const getFileClass = (fileName) => {
 
 // 关闭点击文档时所有菜单
 const closeAllMenus = (e) => {
-  if (!e.target.closest('.folder-action-menu') && 
-      !e.target.closest('.action-menu-btn') && 
-      !e.target.closest('.file-menu') &&
-      !e.target.closest('.file-action-btn')) {
-    activeMenu.value = ''
-    document.querySelectorAll('.n-list-item').forEach(item => {
-      item.classList.remove('menu-active')
-    })
+  // 如果点击的不是菜单本身和菜单按钮，则关闭所有菜单
+  const isMenuClicked = e.target.closest('.folder-action-menu') || 
+                        e.target.closest('.file-menu');
+                        
+  // 如果是在菜单中点击，也要关闭菜单（执行操作后）
+  if (activeMenu.value) {
+    activeMenu.value = '';
+    document.querySelectorAll('.n-list-item, .dzi-item').forEach(item => {
+      item.classList.remove('menu-active');
+    });
+    
+    // 如果是在菜单中点击，阻止事件继续传播，避免重复触发
+    if (isMenuClicked) {
+      e.stopPropagation();
+    }
   }
 }
 
-// 添加全局点击监听
-watch(
-  () => activeMenu.value,
-  (newVal) => {
-    if (newVal) {
-      document.addEventListener('click', closeAllMenus)
-    } else {
-      document.removeEventListener('click', closeAllMenus)
+// 切换侧边栏折叠状态
+const toggleSidebar = () => {
+  isCollapsed.value = !isCollapsed.value;
+  // 如果收起，则将宽度设置为collapsed-width，否则设置为width
+  const targetWidth = isCollapsed.value ? 64 : 320;
+  const targetMinWidth = isCollapsed.value ? 64 : 320;
+  const targetFlex = isCollapsed.value ? '0 0 64px !important' : '0 0 320px !important';
+
+  // 使用nextTick确保样式更新
+  nextTick(() => {
+    const sider = document.querySelector('.file-sider');
+    if (sider) {
+      sider.style.width = `${targetWidth}px !important`;
+      sider.style.minWidth = `${targetMinWidth}px !important`;
+      sider.style.flex = targetFlex;
+      
+      // 添加或移除collapsed类
+      if (isCollapsed.value) {
+        sider.classList.add('collapsed');
+      } else {
+        sider.classList.remove('collapsed');
+      }
+      
+      // 触发窗口resize事件，让其他组件可能的布局调整
+      window.dispatchEvent(new Event('resize'));
     }
-  }
-)
+  });
+};
+
+// 添加全局点击监听
+// 删除不再需要的watch函数
 
 // 移除折叠相关事件处理函数
 // 移除handleSidebarCollapse和handleSidebarExpand函数
@@ -637,6 +667,9 @@ onUnmounted(() => {
   // 移除事件监听器
   document.removeEventListener('click', closeAllMenus)
 })
+
+// 组件加载时立即添加全局点击监听器
+document.addEventListener('click', closeAllMenus)
 </script>
 
 <style scoped>
@@ -647,7 +680,6 @@ onUnmounted(() => {
   position: relative;
   z-index: 5;
   transition: all 0.3s ease;
-  width: 320px !important;
   overflow-x: hidden; /* 防止横向滚动 */
   padding-right: 0; /* 移除右侧内边距 */
 }
@@ -664,6 +696,37 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+/* 添加收起按钮样式 */
+.collapse-btn {
+  margin-right: auto; /* 将按钮推到左侧 */
+  background: rgba(24, 144, 255, 0.08) !important;
+  color: #1890ff !important;
+  transition: all 0.2s ease !important;
+}
+
+.collapse-btn:hover {
+  background: rgba(24, 144, 255, 0.15) !important;
+  box-shadow: 0 2px 5px rgba(24, 144, 255, 0.25) !important;
+}
+
+/* 折叠状态下的侧边栏样式 */
+:deep(.n-layout-sider.collapsed) {
+  width: 64px !important;
+  min-width: 64px !important;
+  flex: 0 0 64px !important;
+}
+
+/* 折叠状态下的侧边栏头部样式 */
+:deep(.n-layout-sider.collapsed) .sidebar-header {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+/* 收起状态下文件列表的样式 */
+:deep(.n-layout-sider.collapsed) .file-list {
+  display: none;
 }
 
 /* 修复文件列表容器的样式，使内容有足够空间 */
