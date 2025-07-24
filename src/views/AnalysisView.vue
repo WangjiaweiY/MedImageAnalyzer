@@ -81,7 +81,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { NLayout } from 'naive-ui'
 import { useMessage } from 'naive-ui'
 import { useUserStore } from '@/stores/user'
@@ -303,11 +303,17 @@ const startRegistration = async () => {
       return
     }
 
+    // 检查是否已有配准任务在进行中
+    if (registrationService.isTaskInProgress()) {
+      message.warning("已有配准任务正在进行中，请等待当前任务完成")
+      return
+    }
+
     // 显示进度中的状态
     registrationInProgress.value = true
     registrationProgress.value = 0
     
-    // 调用配准API
+    // 调用配准API - 注意这里不需要手动设置isTaskInProgress，submitTask方法内部会设置
     const response = await registrationService.submitTask(selectedRegistrationFolder.value)
     
     // 根据API文档解析响应
@@ -339,6 +345,9 @@ const startRegistration = async () => {
     console.error("配准失败:", error)
     message.error(`配准失败: ${error.message || "未知错误"}`)
     registrationInProgress.value = false
+    
+    // 重置配准任务进行状态
+    registrationService.setTaskInProgress(false)
   }
 }
 
@@ -389,9 +398,79 @@ const handleFolderUploaded = (folderName) => {
   fetchFileList()
 }
 
+// 检查活跃配准任务的状态
+const checkActiveRegistrationTask = async () => {
+  try {
+    // 获取所有本地存储的任务
+    const allTasks = registrationService.getAllLocalTasks()
+    
+    // 查找可能正在进行中的任务
+    let activeTasks = []
+    for (const folder in allTasks) {
+      const task = allTasks[folder]
+      if (task.status === 'pending' || task.status === 'processing') {
+        // 如果找到正在进行中的任务，检查其状态
+        activeTasks.push(task)
+      }
+    }
+    
+    // 如果有活跃任务，获取最新状态
+    if (activeTasks.length > 0) {
+      for (const task of activeTasks) {
+        try {
+          const response = await registrationService.getTaskProgress(task.taskId)
+          if (response && response.code === 1 && response.data) {
+            // 更新本地任务状态
+            registrationService.updateTaskProgress(task.taskId, response.data)
+            
+            // 如果任务已完成或失败，更新状态
+            const status = response.data.status
+            if (status === 'completed' || status === 'failed' || status === 'error') {
+              // 重置全局任务状态
+              registrationService.setTaskInProgress(false)
+              // 重置本地UI状态
+              if (task.folder === selectedRegistrationFolder.value) {
+                registrationInProgress.value = false
+              }
+              
+              // 如果任务完成，刷新文件列表
+              if (status === 'completed') {
+                fetchFileList()
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`检查任务 ${task.taskId} 状态失败:`, error)
+        }
+      }
+    }
+  } catch (error) {
+    console.error("检查活跃任务失败:", error)
+  }
+}
+
+// 定义一个变量来存储定时器ID
+let activeTaskCheckTimer = null
+
+// 在组件挂载时，设置定期检查任务状态
 onMounted(() => {
+  // 初始化操作
   fetchFileList()
   initViewers()
+  
+  // 立即检查一次活跃任务
+  checkActiveRegistrationTask()
+  
+  // 设置定时器，每30秒检查一次活跃任务
+  activeTaskCheckTimer = setInterval(checkActiveRegistrationTask, 30000)
+})
+
+// 组件卸载时清除定时器
+onUnmounted(() => {
+  if (activeTaskCheckTimer) {
+    clearInterval(activeTaskCheckTimer)
+    activeTaskCheckTimer = null
+  }
 })
 </script>
 

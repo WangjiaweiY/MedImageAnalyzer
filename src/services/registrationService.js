@@ -1,17 +1,51 @@
 import api from './api';
 
+// 全局状态：是否有配准任务正在进行
+let isRegistrationInProgress = false;
+
 /**
  * 配准任务服务
  */
 const registrationService = {
   /**
+   * 检查是否有配准任务正在进行中
+   * @returns {boolean} - 如果有任务在进行中，则返回true
+   */
+  isTaskInProgress() {
+    return isRegistrationInProgress;
+  },
+
+  /**
+   * 设置配准任务状态
+   * @param {boolean} status - 是否有任务正在进行
+   */
+  setTaskInProgress(status) {
+    isRegistrationInProgress = status;
+  },
+
+  /**
    * 提交配准任务
    * @param {String} folder - 文件夹名称
    * @returns {Promise} - 返回包含taskId的Promise
    */
-  submitTask(folder) {
-    // 根据API文档，folder参数应作为查询参数传递
-    return api.post(`/svs/submit?folder=${encodeURIComponent(folder)}`, null);
+  async submitTask(folder) {
+    // 检查是否已有任务在进行中
+    if (isRegistrationInProgress) {
+      throw new Error('已有配准任务正在进行中，请等待当前任务完成');
+    }
+    
+    try {
+      // 设置任务进行中状态
+      isRegistrationInProgress = true;
+      
+      // 提交任务
+      const response = await api.post(`/svs/submit?folder=${encodeURIComponent(folder)}`, null);
+      return response;
+    } catch (error) {
+      // 如果提交失败，重置状态
+      isRegistrationInProgress = false;
+      throw error;
+    }
   },
 
   /**
@@ -19,8 +53,18 @@ const registrationService = {
    * @param {String} taskId - 任务ID
    * @returns {Promise} - 返回包含任务进度信息的Promise
    */
-  getTaskProgress(taskId) {
-    return api.get(`/svs/progress/${taskId}`);
+  async getTaskProgress(taskId) {
+    const response = await api.get(`/svs/progress/${taskId}`);
+    
+    // 如果任务已完成或失败，重置进行中状态
+    if (response && response.code === 1 && response.data) {
+      const status = response.data.status;
+      if (status === 'completed' || status === 'failed' || status === 'error') {
+        isRegistrationInProgress = false;
+      }
+    }
+    
+    return response;
   },
 
   /**

@@ -1,7 +1,7 @@
 <template>
   <n-layout-header class="header" :class="{ 'header-collapsed': isHeaderCollapsed }">
     <div class="header-content">
-      <div class="logo">武汉协和医院病理阅片系统</div>
+      <div class="logo">迪英加科技病理阅片系统</div>
       <div class="controls">
         <n-button-group>
           <n-button 

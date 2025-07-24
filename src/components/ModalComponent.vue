@@ -84,7 +84,7 @@
             <n-button 
               type="primary"
               @click="startRegistration" 
-              :disabled="!selectedRegistrationFolderValue || isTaskInProgress"
+              :disabled="!selectedRegistrationFolderValue || isRegistrationTaskInProgress"
             >
               开始配准
             </n-button>
@@ -274,11 +274,11 @@ import registrationService from '../services/registrationService'
 const props = defineProps({
   registrationModalVisible: {
     type: Boolean,
-    default: false
+    required: true
   },
   registrationFolderList: {
     type: Array,
-    default: () => []
+    required: true
   },
   selectedRegistrationFolderValue: {
     type: String,
@@ -286,14 +286,12 @@ const props = defineProps({
   },
   uploadModalVisible: {
     type: Boolean,
+    required: false,
     default: false
   },
-  uploadProgress: {
-    type: Number,
-    default: 0
-  },
-  uploadInProgress: {
+  resultModalVisible: {
     type: Boolean,
+    required: false,
     default: false
   },
   registrationProgress: {
@@ -304,17 +302,13 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  resultModalVisible: {
-    type: Boolean,
-    default: false
+  resultData: {
+    type: [Object, Array],
+    default: () => ({})
   },
   resultModalTitle: {
     type: String,
     default: ''
-  },
-  resultModalContent: {
-    type: [Object, Array, String],
-    default: null
   }
 })
 
@@ -340,9 +334,14 @@ const registeredFolders = ref([])
 const currentTask = ref(null)
 const recentTasks = ref([])
 const isTaskInProgress = computed(() => 
-  currentTask.value && 
-  (currentTask.value.status === 'pending' || currentTask.value.status === 'processing')
+  props.registrationInProgress || 
+  (currentTask.value && (currentTask.value.status === 'pending' || currentTask.value.status === 'processing'))
 )
+
+// 检查是否有配准任务正在进行中（使用registrationService的全局状态）
+const isRegistrationTaskInProgress = computed(() => {
+  return isTaskInProgress.value || registrationService.isTaskInProgress();
+})
 
 // 添加历史任务显示状态控制
 const showHistoryTasks = ref(false)

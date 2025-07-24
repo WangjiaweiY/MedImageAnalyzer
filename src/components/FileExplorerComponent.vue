@@ -29,35 +29,35 @@
         <n-button circle type="primary" size="small" @click="fetchFileList">
           <n-icon><ReloadOutlined /></n-icon>
         </n-button>
-        
-        <n-tooltip trigger="hover" placement="bottom">
-          <template #trigger>
-            <n-button 
-              circle 
-              :type="isRecording ? 'error' : 'warning'" 
-              size="small" 
-              @click="toggleRecording" 
-              style="margin-left: 8px;"
-            >
-              <n-icon><VideoCameraOutlined /></n-icon>
-            </n-button>
-          </template>
-          {{ isRecording ? `停止录制 (${formatTime(recordingTime)})` : '开始录制' }}
-        </n-tooltip>
-        <n-tooltip trigger="hover" placement="bottom">
-          <template #trigger>
-            <n-button 
-              circle 
-              type="success" 
-              size="small" 
-              @click="saveMultiView"
-              style="margin-left: 8px;"
-            >
-              <n-icon><CameraOutlined /></n-icon>
-            </n-button>
-          </template>
-          保存当前视图
-        </n-tooltip>
+      
+      <n-tooltip trigger="hover" placement="bottom">
+        <template #trigger>
+          <n-button 
+            circle 
+            :type="isRecording ? 'error' : 'warning'" 
+            size="small" 
+            @click="toggleRecording" 
+            style="margin-left: 8px;"
+          >
+            <n-icon><VideoCameraOutlined /></n-icon>
+          </n-button>
+        </template>
+        {{ isRecording ? `停止录制 (${formatTime(recordingTime)})` : '开始录制' }}
+      </n-tooltip>
+      <n-tooltip trigger="hover" placement="bottom">
+        <template #trigger>
+          <n-button 
+            circle 
+            type="success" 
+            size="small" 
+            @click="saveMultiView"
+            style="margin-left: 8px;"
+          >
+            <n-icon><CameraOutlined /></n-icon>
+          </n-button>
+        </template>
+        保存当前视图
+      </n-tooltip>
       </template>
     </div>
     
