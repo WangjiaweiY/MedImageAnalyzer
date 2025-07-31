@@ -83,6 +83,19 @@ export const fileApi = {
       return handleError(error, `删除文件 ${fileName} 失败`);
     }
   },
+
+    // 获取图像染色信息
+    getImageStainInfo: async (folderName, fileName) => {
+      try {
+        const response = await api.get(`/dzi/stain-info/${folderName}/${fileName}`)
+        return response.data || { stainType: '未知' }
+      } catch (error) {
+        console.error(`获取图像 ${folderName}/${fileName} 的染色信息失败:`, error)
+        // 如果API尚未实现或请求失败，返回默认值
+        return { stainType: '未知' }
+      }
+    },
+  
   
   // 上传文件夹
   uploadFolder: async (formData) => {

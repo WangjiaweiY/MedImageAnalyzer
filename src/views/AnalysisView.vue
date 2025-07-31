@@ -11,6 +11,7 @@
       @handle-folder-and-upload="handleFolderAndUpload"
       @toggle-header="toggleHeader"
       @open-upload-modal="openUploadModal"
+      @toggleStainInfo="toggleStainInfo"
     />
 
     <!-- 主体区域：左侧为文件目录列表，右侧为图像展示区域 -->
@@ -104,8 +105,14 @@ const modalRef = ref(null)
 
 // 标注同步状态
 const isSyncAnnotation = ref(false)
+// 切换标注同步状态
 const updateIsSyncAnnotation = (value) => {
   isSyncAnnotation.value = value
+}
+
+// 切换染色信息显示状态
+const toggleStainInfo = (value) => {
+  viewerStore.toggleStainInfo()
 }
 
 // 使用 viewerStore 中的状态和方法
@@ -217,7 +224,16 @@ const toggleFolder = async (folderName) => {
 // 选择DZI项
 const selectDziItem = (parentFolder, item) => {
   const url = `/api/dzi/processed/${parentFolder}/${item.name}/`
-  viewerStore.updateViewerDziUrl(url, item.name)
+  
+  // 更新查看器
+  const viewerIndex = viewerStore.updateViewerDziUrl(url, item.name)
+  
+  // 如果成功更新了查看器，获取染色信息
+  if (viewerIndex !== null && viewerIndex !== undefined) {
+    // 异步获取染色信息
+    viewerStore.fetchStainInfo(viewerIndex, parentFolder, item.name)
+      .catch(error => console.error(`获取染色信息失败: ${error}`))
+  }
 }
 
 // 更新DZI URL（从视图组件调用）
@@ -388,9 +404,23 @@ const autoDisplayImages = (folderName, files) => {
   // 设置所有可用的图像文件到store中
   viewerStore.setAllImageFiles(imageFiles)
   
-  // 获取分页信息
-  const paginationInfo = viewerStore.getPaginationInfo()
+  // 获取分页信息并显示第一页
+  viewerStore.displayImagesByPage(1)
   
+  // 为每个显示的图像获取染色信息
+  // 延迟获取，确保查看器已初始化完成
+  setTimeout(() => {
+    const currentImages = viewerStore.currentDisplayedImages
+    const currentViewers = viewerStore.viewers
+    
+    currentImages.forEach((image, index) => {
+      if (currentViewers[index]) {
+        // 异步获取染色信息
+        viewerStore.fetchStainInfo(index, folderName, image.name)
+          .catch(error => console.error(`获取染色信息失败: ${error}`))
+      }
+    })
+  }, 500)
 }
 
 // 处理文件夹上传成功后的回调

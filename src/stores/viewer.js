@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import OpenSeadragon from 'openseadragon'
+import { imageApi } from '@/services/api'
 
 export const useViewerStore = defineStore('viewer', {
   state: () => ({
@@ -22,10 +23,57 @@ export const useViewerStore = defineStore('viewer', {
     currentPage: 1,
     totalImages: 0,
     currentDisplayedImages: [],
-    allImageFiles: []
+    allImageFiles: [],
+    
+    // 染色信息相关
+    showStainInfo: true,  // 是否显示染色信息
+    imageStainInfo: []     // 存储每个图像的染色信息
   }),
   
   actions: {
+    /**
+     * 切换染色信息显示状态
+     */
+    toggleStainInfo() {
+      this.showStainInfo = !this.showStainInfo
+    },
+    
+    /**
+     * 获取图像染色信息
+     * @param {number} index - 图像索引
+     * @param {string} folderName - 文件夹名称
+     * @param {string} fileName - 文件名
+     */
+    async fetchStainInfo(index, folderName, fileName) {
+      try {
+        // 如果文件名包含路径分隔符，提取真实文件名
+        const realFileName = fileName.includes('/') ? 
+          fileName.substring(fileName.lastIndexOf('/') + 1) : fileName
+        
+        // 调用API获取染色信息
+        const stainInfo = await imageApi.getImageStainInfo(folderName, realFileName)
+        
+        // 确保imageStainInfo数组有足够的长度
+        while (this.imageStainInfo.length <= index) {
+          this.imageStainInfo.push({ stainType: '未知' })
+        }
+        
+        // 更新染色信息
+        this.imageStainInfo[index] = stainInfo
+        
+        return stainInfo
+      } catch (error) {
+        console.error(`获取染色信息失败: ${error.message}`)
+        
+        // 确保imageStainInfo数组有足够的长度并设置默认值
+        while (this.imageStainInfo.length <= index) {
+          this.imageStainInfo.push({ stainType: '未知' })
+        }
+        
+        return { stainType: '未知' }
+      }
+    },
+    
     /**
      * 初始化所有查看器
      */
@@ -55,19 +103,20 @@ export const useViewerStore = defineStore('viewer', {
      * 更新指定查看器的DZI URL
      * @param {string} url - DZI资源URL
      * @param {string} fileName - 文件名
+     * @returns {number|null} - 返回更新的查看器索引，如果失败则返回null
      */
     updateViewerDziUrl(url, fileName) {
       if (this.selectedViewerIndex === null) {
-        return false
+        return null;
       }
       
       // 销毁现有查看器
       if (this.viewers[this.selectedViewerIndex]) {
-        this.viewers[this.selectedViewerIndex].destroy()
+        this.viewers[this.selectedViewerIndex].destroy();
       }
       
       // 更新文件名
-      this.viewerFileNames[this.selectedViewerIndex] = fileName
+      this.viewerFileNames[this.selectedViewerIndex] = fileName;
       
       // 创建新查看器
       this.viewers[this.selectedViewerIndex] = OpenSeadragon({
@@ -97,19 +146,19 @@ export const useViewerStore = defineStore('viewer', {
         minZoomLevel: 0.1,
         visibilityRatio: 0.9,
         homeFillsViewer: true
-      })
+      });
       
       // 添加图像打开事件处理器，只在高度方向铺满
       this.viewers[this.selectedViewerIndex].addHandler('open', (event) => {
         const viewer = this.viewers[this.selectedViewerIndex];
         // 使用goHome方法实现类似于点击"回归中心"按钮的效果
         viewer.viewport.goHome(true);
-      })
+      });
       
       // 默认启用同步
-      this.setupSync()
+      this.setupSync();
       
-      return true
+      return this.selectedViewerIndex;
     },
     
     /**
@@ -117,12 +166,13 @@ export const useViewerStore = defineStore('viewer', {
      * @param {number} index - 查看器索引
      * @param {string} url - DZI资源URL
      * @param {string} fileName - 文件名
+     * @returns {number|null} - 返回更新的查看器索引，如果失败则返回null
      */
     updateViewerAtIndex(index, url, fileName) {
       // 检查索引是否有效
       if (index < 0 || index >= this.viewers.length) {
         console.error(`无效的查看器索引: ${index}`)
-        return false
+        return null;
       }
       
       // 销毁现有查看器
@@ -173,7 +223,7 @@ export const useViewerStore = defineStore('viewer', {
       // 默认启用同步
       this.setupSync()
       
-      return true
+      return index;
     },
     
     /**

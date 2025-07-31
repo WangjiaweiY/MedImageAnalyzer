@@ -29,6 +29,14 @@
           </n-button>
         </div>
         
+        <!-- 添加染色信息显示 -->
+        <div 
+          v-if="hasDzi(index) && showStainInfo && imageStainInfo[index]" 
+          class="stain-info-wrapper"
+        >
+          <div class="stain-info">{{ imageStainInfo[index].stainType }}</div>
+        </div>
+        
         <div :id="`osdViewer-${index}`" class="osd-viewer"></div>
         <div v-if="!hasDzi(index)" class="placeholder">
           <div class="empty-state-content">
@@ -106,6 +114,14 @@
           </div>
         </div>
         
+        <!-- 添加染色信息显示 - 大图 -->
+        <div 
+          v-if="hasDzi(0) && showStainInfo && imageStainInfo[0]" 
+          class="stain-info-wrapper"
+        >
+          <div class="stain-info">{{ imageStainInfo[0].stainType }}</div>
+        </div>
+        
         <!-- 其他组件保持不变 -->
       </div>
       
@@ -134,6 +150,14 @@
               <n-icon size="32" class="empty-icon"><file-image-outlined /></n-icon>
               <p class="empty-title">请选择图像</p>
             </div>
+          </div>
+          
+          <!-- 添加染色信息显示 - 小图 -->
+          <div 
+            v-if="hasDzi(index) && showStainInfo && imageStainInfo[index]" 
+            class="stain-info-wrapper small-stain"
+          >
+            <div class="stain-info">{{ imageStainInfo[index].stainType }}</div>
           </div>
           
           <!-- 其他组件保持不变 -->
@@ -170,6 +194,14 @@
             </div>
           </div>
           
+          <!-- 添加染色信息显示 - 小图 -->
+          <div 
+            v-if="hasDzi(index - 1) && showStainInfo && imageStainInfo[index - 1]" 
+            class="stain-info-wrapper small-stain"
+          >
+            <div class="stain-info">{{ imageStainInfo[index - 1].stainType }}</div>
+          </div>
+          
           <!-- 其他组件保持不变 -->
         </div>
       </div>
@@ -199,6 +231,14 @@
           </div>
         </div>
         
+        <!-- 添加染色信息显示 - 大图 -->
+        <div 
+          v-if="hasDzi(4) && showStainInfo && imageStainInfo[4]" 
+          class="stain-info-wrapper"
+        >
+          <div class="stain-info">{{ imageStainInfo[4].stainType }}</div>
+        </div>
+        
         <!-- 其他组件保持不变 -->
       </div>
     </div>
@@ -220,9 +260,11 @@ import OpenSeadragon from 'openseadragon'
 import { throttle } from '../utils/throttle'
 import FabricOverlayCanvas from './FabricOverlayCanvas.vue'
 import ImageToolbox from './ImageToolbox.vue'
+import { useViewerStore } from '@/stores/viewer'
 
 const message = useMessage()
 const viewerContainerRef = ref(null)
+const viewerStore = useViewerStore() // 使用ViewerStore
 // 注: 标注同步开关状态通过props传入
 
 const props = defineProps({
@@ -265,6 +307,10 @@ const currentColor = ref('red');
 const currentLineWidth = ref(0.5);
 const annotationCanvasRefs = ref([]);
 const annotationData = ref([]);
+
+// 染色信息相关状态和计算属性
+const showStainInfo = computed(() => viewerStore.showStainInfo);
+const imageStainInfo = computed(() => viewerStore.imageStainInfo);
 
 // 关闭图像
 const closeImage = (index) => {
@@ -1115,4 +1161,34 @@ onMounted(() => {
   max-height: 100%;
   overflow-y: hidden;
 }
+
+/* 染色信息样式 */
+.stain-info-wrapper {
+  position: absolute;
+  bottom: 15px;
+  left: 15px;
+  z-index: 50;
+  pointer-events: none; /* 确保点击事件穿透到底层 */
+}
+
+.stain-info {
+  background-color: white;
+  color: #e74c3c; /* 红色文本 */
+  font-weight: bold;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 16px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(231, 76, 60, 0.3); /* 淡红色边框 */
+  min-width: 80px;
+  text-align: center;
+}
+
+/* 小图染色信息样式 */
+.small-stain .stain-info {
+  font-size: 14px;
+  padding: 4px 8px;
+  min-width: 60px;
+}
+
 </style> 

@@ -50,6 +50,21 @@
           {{ isSyncAnnotation ? '标注同步：开' : '标注同步：关' }}
         </n-tooltip>
         
+        <!-- 添加染色信息显示开关按钮 -->
+        <n-tooltip trigger="hover" placement="bottom">
+          <template #trigger>
+            <n-button 
+              circle 
+              :type="showStainInfo ? 'primary' : 'default'"
+              @click="toggleStainInfo"
+              class="stain-info-btn"
+            >
+              <n-icon><ExperimentOutlined /></n-icon>
+            </n-button>
+          </template>
+          {{ showStainInfo ? '染色信息：显示' : '染色信息：隐藏' }}
+        </n-tooltip>
+        
         <!-- 分页控制按钮 -->
         <n-space class="pagination-controls" style="margin-left: 10px;">
           <n-tooltip trigger="hover" placement="bottom">
@@ -133,7 +148,7 @@ import {
   NTooltip,
   useMessage
 } from 'naive-ui'
-import { DownOutlined, UpOutlined, LeftOutlined, RightOutlined, LogoutOutlined, UserOutlined, SyncOutlined } from '@vicons/antd'
+import { DownOutlined, UpOutlined, LeftOutlined, RightOutlined, LogoutOutlined, UserOutlined, SyncOutlined, ExperimentOutlined } from '@vicons/antd'
 import { useUserStore } from '@/stores/user'
 import { useViewerStore } from '@/stores/viewer'
 
@@ -154,7 +169,8 @@ const emit = defineEmits([
   'handleFolderAndUpload',
   'toggleHeader',
   'openUploadModal',
-  'update:isSyncAnnotation'
+  'update:isSyncAnnotation',
+  'toggleStainInfo'
 ])
 
 const router = useRouter()
@@ -170,6 +186,15 @@ const isSyncAnnotation = ref(false)
 const toggleSyncAnnotation = () => {
   isSyncAnnotation.value = !isSyncAnnotation.value
   emit('update:isSyncAnnotation', isSyncAnnotation.value)
+}
+
+// 染色信息显示开关
+const showStainInfo = ref(true)
+
+// 切换染色信息显示状态
+const toggleStainInfo = () => {
+  showStainInfo.value = !showStainInfo.value
+  emit('toggleStainInfo', showStainInfo.value)
 }
 
 // 分页相关
@@ -512,6 +537,24 @@ const openScreenRecorder = () => {
 }
 
 :deep(.n-button.sync-annotation-btn[type="primary"]) {
+  background: rgba(24, 144, 255, 0.8);
+  color: white;
+}
+
+.stain-info-btn {
+  margin-left: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  transition: all 0.3s ease;
+  color: white;
+}
+
+:deep(.n-button.stain-info-btn:hover) {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+}
+
+:deep(.n-button.stain-info-btn[type="primary"]) {
   background: rgba(24, 144, 255, 0.8);
   color: white;
 }
