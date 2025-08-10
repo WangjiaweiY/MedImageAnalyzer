@@ -69,6 +69,7 @@
       :result-modal-title="resultModalTitle"
       :result-modal-content="resultModalContent"
       :manual-modal-visible="manualModalVisible"
+      :processed-folder-list="fileList"
       @update:registration-modal-visible="updateRegistrationModalVisible"
       @update:selected-registration-folder-value="updateSelectedRegistrationFolder"
       @update:upload-modal-visible="updateUploadModalVisible"

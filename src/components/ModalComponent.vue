@@ -71,10 +71,15 @@
               <li 
                 v-for="folder in registrationFolderList" 
                 :key="folder.folderName"
-                :class="{ selected: selectedRegistrationFolder === folder.folderName }"
+                :class="{ 
+                  selected: selectedRegistrationFolder === folder.folderName,
+                  'already-registered': isFolderAlreadyRegistered(folder.folderName),
+                  disabled: isFolderAlreadyRegistered(folder.folderName)
+                }"
                 @click="selectRegistrationFolder(folder.folderName)"
               >
-                {{ folder.folderName }}
+                <span class="folder-name">{{ folder.folderName }}</span>
+                <span v-if="isFolderAlreadyRegistered(folder.folderName)" class="status-tag">已配准</span>
               </li>
             </ul>
           </div>
@@ -84,9 +89,9 @@
             <n-button 
               type="primary"
               @click="startRegistration" 
-              :disabled="!selectedRegistrationFolderValue || isRegistrationTaskInProgress"
+              :disabled="!selectedRegistrationFolderValue || isRegistrationTaskInProgress || isFolderAlreadyRegistered(selectedRegistrationFolderValue)"
             >
-              开始配准
+              {{ isFolderAlreadyRegistered(selectedRegistrationFolderValue) ? '已配准' : '开始配准' }}
             </n-button>
             <n-button 
               type="primary"
@@ -327,6 +332,11 @@ const props = defineProps({
     type: Boolean,
     required: false,
     default: false
+  },
+  processedFolderList: {
+    type: Array,
+    required: false,
+    default: () => []
   },
   registrationProgress: {
     type: Number,
@@ -672,6 +682,12 @@ const startRegistration = () => {
     return
   }
   
+  // 检查文件夹是否已经配准
+  if (isFolderAlreadyRegistered(props.selectedRegistrationFolderValue)) {
+    message.warning('该文件夹已经配准完成，无需重复配准')
+    return
+  }
+  
   // 检查文件夹是否已在处理中
   if (isCurrentFolderProcessing()) {
     message.warning('该文件夹正在配准中')
@@ -702,6 +718,12 @@ const closeResultModal = () => {
 // 关闭操作说明模态框
 const closeManualModal = () => {
   emit('update:manualModalVisible', false)
+}
+
+// 检查文件夹是否已经配准
+const isFolderAlreadyRegistered = (folderName) => {
+  // 如果文件夹在已处理的文件夹列表中，说明已经配准
+  return props.processedFolderList.some(folder => folder.folderName === folderName)
 }
 
 // 更新配准进度
@@ -1148,6 +1170,43 @@ const calculateAverageStats = (data) => {
   color: #1890ff;
   font-weight: 500;
   padding-left: 20px;
+}
+
+.folder-list li.already-registered {
+  background: #f6f6f6;
+  color: #999;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.folder-list li.already-registered:hover {
+  background: #f6f6f6;
+  color: #999;
+  transform: none;
+}
+
+.folder-list li.disabled {
+  pointer-events: none;
+}
+
+.folder-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.folder-name {
+  flex: 1;
+}
+
+.status-tag {
+  background: #52c41a;
+  color: white;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+  font-weight: 500;
 }
 
 .modal-footer {
