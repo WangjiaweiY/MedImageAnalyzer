@@ -148,7 +148,7 @@ import {
   NTooltip,
   useMessage
 } from 'naive-ui'
-import { DownOutlined, UpOutlined, LeftOutlined, RightOutlined, LogoutOutlined, UserOutlined, SyncOutlined, ExperimentOutlined } from '@vicons/antd'
+import { DownOutlined, UpOutlined, LeftOutlined, RightOutlined, LogoutOutlined, UserOutlined, SyncOutlined, ExperimentOutlined, QuestionCircleOutlined } from '@vicons/antd'
 import { useUserStore } from '@/stores/user'
 import { useViewerStore } from '@/stores/viewer'
 
@@ -170,7 +170,8 @@ const emit = defineEmits([
   'toggleHeader',
   'openUploadModal',
   'update:isSyncAnnotation',
-  'toggleStainInfo'
+  'toggleStainInfo',
+  'openManualModal'
 ])
 
 const router = useRouter()
@@ -218,6 +219,11 @@ const prevPage = () => {
 // 用户下拉菜单选项
 const userOptions = [
   {
+    label: '操作说明',
+    key: 'manual',
+    icon: () => h(NIcon, null, { default: () => h(QuestionCircleOutlined) })
+  },
+  {
     label: '退出登录',
     key: 'logout',
     icon: () => h(NIcon, null, { default: () => h(LogoutOutlined) })
@@ -230,6 +236,8 @@ const handleUserAction = (key) => {
     userStore.clearUserData()
     message.success('已退出登录')
     router.push('/')
+  } else if (key === 'manual') {
+    emit('openManualModal')
   }
 }
 

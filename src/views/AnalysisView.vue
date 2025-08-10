@@ -12,6 +12,7 @@
       @toggle-header="toggleHeader"
       @open-upload-modal="openUploadModal"
       @toggleStainInfo="toggleStainInfo"
+      @open-manual-modal="openManualModal"
     />
 
     <!-- 主体区域：左侧为文件目录列表，右侧为图像展示区域 -->
@@ -67,10 +68,12 @@
       :result-modal-visible="resultModalVisible"
       :result-modal-title="resultModalTitle"
       :result-modal-content="resultModalContent"
+      :manual-modal-visible="manualModalVisible"
       @update:registration-modal-visible="updateRegistrationModalVisible"
       @update:selected-registration-folder-value="updateSelectedRegistrationFolder"
       @update:upload-modal-visible="updateUploadModalVisible"
       @update:result-modal-visible="updateResultModalVisible"
+      @update:manual-modal-visible="updateManualModalVisible"
       @start-registration="startRegistration"
       @handle-file-selection="handleFileSelection"
       @start-upload="startUpload"
@@ -188,11 +191,15 @@ const resultModalVisible = ref(false)
 const resultModalTitle = ref('')
 const resultModalContent = ref(null)
 
+// 操作说明相关状态
+const manualModalVisible = ref(false)
+
 // 模态框状态更新函数
 const updateRegistrationModalVisible = (value) => { registrationModalVisible.value = value }
 const updateSelectedRegistrationFolder = (value) => { selectedRegistrationFolder.value = value }
 const updateUploadModalVisible = (value) => { uploadModalVisible.value = value }
 const updateResultModalVisible = (value) => { resultModalVisible.value = value }
+const updateManualModalVisible = (value) => { manualModalVisible.value = value }
 
 // 文件列表操作
 const fetchFileList = async () => {
@@ -277,6 +284,11 @@ const openUploadModal = () => {
   uploadProgress.value = 0;
   uploadInProgress.value = false;
   selectedFolderFiles.value = [];
+}
+
+// 打开操作说明模态框
+const openManualModal = () => {
+  manualModalVisible.value = true
 }
 
 // 处理文件选择 - 模态框内部已经处理，这里只需要保留接口

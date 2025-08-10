@@ -242,6 +242,35 @@
         <n-button v-if="canExportResult" type="primary" @click="exportResult">导出结果</n-button>
       </template>
     </n-modal>
+
+    <!-- 操作说明PDF模态框 -->
+    <div v-if="manualModalVisible" class="custom-modal-overlay">
+      <div class="custom-modal-box manual-modal">
+        <div class="modal-header">
+          <span class="modal-title">操作说明书</span>
+          <button class="modal-close-btn" @click="closeManualModal">×</button>
+        </div>
+        <div class="modal-body manual-body">
+          <div class="pdf-container">
+            <iframe 
+              src="/specification.pdf" 
+              type="application/pdf"
+              class="pdf-viewer"
+              frameborder="0"
+            ></iframe>
+          </div>
+          <div class="pdf-fallback">
+            <p>如果PDF无法正常显示，请 <a href="/specification.pdf" target="_blank" download="操作说明书.pdf">点击此处下载</a></p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div class="footer-right">
+            <a href="/specification.pdf" target="_blank" download="操作说明书.pdf" class="modal-btn">下载PDF</a>
+            <button class="modal-btn" @click="closeManualModal">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -294,6 +323,11 @@ const props = defineProps({
     required: false,
     default: false
   },
+  manualModalVisible: {
+    type: Boolean,
+    required: false,
+    default: false
+  },
   registrationProgress: {
     type: Number,
     default: 0
@@ -317,6 +351,7 @@ const emit = defineEmits([
   'update:selectedRegistrationFolderValue',
   'update:uploadModalVisible',
   'update:resultModalVisible',
+  'update:manualModalVisible',
   'startRegistration',
   'handleFileSelection',
   'startUpload',
@@ -662,6 +697,11 @@ const startRegistration = () => {
 
 const closeResultModal = () => {
   emit('update:resultModalVisible', false)
+}
+
+// 关闭操作说明模态框
+const closeManualModal = () => {
+  emit('update:manualModalVisible', false)
 }
 
 // 更新配准进度
@@ -1626,5 +1666,64 @@ const calculateAverageStats = (data) => {
   opacity: 0;
   cursor: pointer;
   z-index: 1;
+}
+
+/* 操作说明PDF弹窗样式 */
+.manual-modal {
+  width: 90vw;
+  max-width: 1200px;
+  height: 90vh;
+  max-height: 800px;
+}
+
+.manual-body {
+  padding: 0;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pdf-container {
+  flex: 1;
+  position: relative;
+  background: white;
+  border-radius: 8px;
+  margin: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.pdf-viewer {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: white;
+}
+
+.pdf-fallback {
+  padding: 16px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  background: #fff;
+  margin: 0 16px 16px;
+  border-radius: 8px;
+  border: 1px solid #e1e1e1;
+}
+
+.pdf-fallback a {
+  color: #1890ff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.pdf-fallback a:hover {
+  text-decoration: underline;
+}
+
+.modal-btn[href] {
+  text-decoration: none;
+  display: inline-block;
 }
 </style> 
