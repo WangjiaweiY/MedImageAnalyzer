@@ -34,6 +34,17 @@
         <span>自由绘制</span>
       </n-tooltip>
       
+      <n-tooltip trigger="hover" placement="right">
+        <template #trigger>
+          <n-button :type="currentTool === 'eraser' ? 'primary' : 'default'" @click="selectTool('eraser')">
+            <template #icon>
+              <n-icon><clear-outlined /></n-icon>
+            </template>
+          </n-button>
+        </template>
+        <span>橡皮擦</span>
+      </n-tooltip>
+      
       <n-divider />
       
       <!-- 颜色选择按钮 -->
@@ -49,13 +60,25 @@
       <!-- 线宽调节按钮 -->
       <n-tooltip trigger="hover" placement="right">
         <template #trigger>
-          <n-button @click="showLineWidthPicker">
+          <n-button @click="showLineWidthPicker" :disabled="currentTool === 'eraser'">
             <template #icon>
               <n-icon><line-outlined /></n-icon>
             </template>
           </n-button>
         </template>
         <span>调整线宽: {{ lineWidth }}px</span>
+      </n-tooltip>
+      
+      <!-- 橡皮擦大小调节按钮 -->
+      <n-tooltip trigger="hover" placement="right">
+        <template #trigger>
+          <n-button @click="showEraserSizePicker" :disabled="currentTool !== 'eraser'">
+            <template #icon>
+              <n-icon><border-outlined /></n-icon>
+            </template>
+          </n-button>
+        </template>
+        <span>调整橡皮擦大小: {{ eraserSize }}px</span>
       </n-tooltip>
       
       <n-divider />
@@ -108,6 +131,32 @@
         <n-button type="primary" @click="confirmLineWidth">确定</n-button>
       </div>
     </n-modal>
+    
+    <!-- 橡皮擦大小调节弹窗 -->
+    <n-modal
+      v-model:show="eraserSizePickerVisible"
+      preset="card"
+      title="调整橡皮擦大小"
+      :style="{ width: '340px' }"
+    >
+      <div class="eraser-size-preview">
+        <div class="eraser-circle" :style="{width: eraserSize + 'px', height: eraserSize + 'px'}"></div>
+      </div>
+      <n-slider 
+        v-model:value="eraserSize" 
+        :min="1" 
+        :max="50" 
+        :step="1"
+        @update:value="updateEraserSize" 
+      />
+      <div class="slider-labels">
+        <span>小</span>
+        <span>大</span>
+      </div>
+      <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+        <n-button type="primary" @click="confirmEraserSize">确定</n-button>
+      </div>
+    </n-modal>
   </div>
 </template>
 
@@ -131,7 +180,8 @@ import {
   HighlightOutlined,
   EditOutlined,
   DeleteOutlined,
-  LineOutlined
+  LineOutlined,
+  ClearOutlined
 } from '@vicons/antd';
 
 const emit = defineEmits(['tool-changed', 'clear-annotations']);
@@ -139,8 +189,10 @@ const emit = defineEmits(['tool-changed', 'clear-annotations']);
 const currentTool = ref('select'); // 默认选择工具
 const colorPickerVisible = ref(false);
 const lineWidthPickerVisible = ref(false);
+const eraserSizePickerVisible = ref(false);
 const currentColor = ref('red'); // 默认红色
 const lineWidth = ref(0.5); // 默认线宽为0.5px
+const eraserSize = ref(10); // 默认橡皮擦大小为10px
 
 const selectTool = (tool) => {
   currentTool.value = tool;
@@ -155,6 +207,10 @@ const showLineWidthPicker = () => {
   lineWidthPickerVisible.value = true;
 };
 
+const showEraserSizePicker = () => {
+  eraserSizePickerVisible.value = true;
+};
+
 const confirmColorSelection = () => {
   colorPickerVisible.value = false;
   updateToolSettings();
@@ -165,11 +221,21 @@ const confirmLineWidth = () => {
   updateToolSettings();
 };
 
+const confirmEraserSize = () => {
+  eraserSizePickerVisible.value = false;
+  updateToolSettings();
+};
+
+const updateEraserSize = () => {
+  updateToolSettings();
+};
+
 const updateToolSettings = () => {
   emit('tool-changed', {
     tool: currentTool.value,
     color: currentColor.value,
-    lineWidth: lineWidth.value
+    lineWidth: lineWidth.value,
+    eraserSize: eraserSize.value
   });
 };
 
@@ -300,5 +366,34 @@ const clearAnnotations = () => {
 
 :deep(.n-card__content) {
   padding: 20px;
+}
+
+.eraser-size-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80px;
+  margin: 16px 0;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  position: relative;
+}
+
+.eraser-circle {
+  background-color: rgba(255, 0, 0, 0.3);
+  border: 2px dashed #ff4d4f;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.eraser-circle::before {
+  content: '✕';
+  color: #ff4d4f;
+  font-size: 14px;
+  font-weight: bold;
 }
 </style> 

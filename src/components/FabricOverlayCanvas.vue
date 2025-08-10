@@ -57,6 +57,8 @@ let currentObject = null;
 let drawingStartPoint = { x: 0, y: 0 };
 // 新增标识属性，用于记录是否是在同步状态下创建的标注
 const SYNC_ATTRIBUTE = 'createdWithSyncEnabled';
+// 防止递归调用的标志
+let isProcessingSync = false;
 
 // 初始化Fabric.js overlay
 const initOverlay = () => {
@@ -234,6 +236,18 @@ const onMouseDown = (options) => {
     return;
   }
   
+  // 橡皮擦模式处理
+  if (props.tool === 'eraser') {
+    // 获取点击位置的对象
+    const target = fabricCanvas.findTarget(options.e, false);
+    if (target && (target.type === 'path' || target.type === 'text' || target.type === 'rect' || target.type === 'circle')) {
+      // 删除被点击的标注对象
+      fabricCanvas.remove(target);
+      saveAnnotationData();
+    }
+    return;
+  }
+  
   isDrawing = true;
   
   switch (props.tool) {
@@ -275,6 +289,16 @@ const onMouseDown = (options) => {
         // 将当前的同步状态记录在绘制对象上
         e.path.set(SYNC_ATTRIBUTE, props.isSyncAnnotation);
       });
+      break;
+      
+    case 'eraser':
+      // 橡皮擦模式 - 禁用绘图模式，改为点击删除模式
+      fabricCanvas.isDrawingMode = false;
+      fabricCanvas.selection = false;
+      
+      // 设置鼠标样式为橡皮擦
+      fabricCanvas.defaultCursor = 'crosshair';
+      fabricCanvas.hoverCursor = 'crosshair';
       break;
   }
   
@@ -403,9 +427,17 @@ watch(() => props.tool, (newTool) => {
       fabricCanvas.freeDrawingBrush.color = props.color;
       fabricCanvas.freeDrawingBrush.width = adjustedLineWidth;
     }
+  } else if (newTool === 'eraser') {
+    fabricCanvas.isDrawingMode = false;
+    fabricCanvas.selection = false;
+    fabricCanvas.defaultCursor = 'crosshair';
+    fabricCanvas.hoverCursor = 'crosshair';
   } else {
     // 对于select和text工具，禁用绘图模式
     fabricCanvas.isDrawingMode = false;
+    fabricCanvas.selection = true;
+    fabricCanvas.defaultCursor = 'default';
+    fabricCanvas.hoverCursor = 'move';
   }
 }, { immediate: true });
 
@@ -417,48 +449,73 @@ watch(() => props.color, (newColor) => {
   }
 });
 
+watch(() => props.lineWidth, (newLineWidth) => {
+  if (!fabricCanvas || !props.viewer) return;
+  
+  // 根据缩放级别调整线宽/橡皮擦大小
+  const zoom = props.viewer.viewport.getZoom(true);
+  const zoomFactor = Math.max(1, zoom / 2);
+  const adjustedWidth = newLineWidth / zoomFactor;
+  
+  if (props.tool === 'draw' && fabricCanvas.freeDrawingBrush) {
+    fabricCanvas.freeDrawingBrush.width = adjustedWidth;
+  }
+});
+
 watch(() => props.annotationEnabled, () => {
   updateInteractionMode();
 });
 
 watch(() => props.annotationData, (newData, oldData) => {
-  if (!fabricCanvas || !newData) return;
+  if (!fabricCanvas || !newData || isProcessingSync) return;
   
   try {
     const parsedData = JSON.parse(newData);
     const oldParsedData = oldData ? JSON.parse(oldData) : null;
     
-    // 如果是从其他查看器同步来的数据
-    if (oldParsedData && parsedData.objects && oldParsedData.objects && 
-        parsedData.objects.length !== oldParsedData.objects.length) {
+    // 如果是从其他查看器同步来的数据，且确实是同步操作触发的变化
+    const isFromSync = oldParsedData && parsedData.objects && oldParsedData.objects && 
+        parsedData.objects.length !== oldParsedData.objects.length &&
+        // 确保新数据中只包含同步标注（避免本地添加非同步对象时触发）
+        parsedData.objects.every(obj => obj.type !== 'path' || obj[SYNC_ATTRIBUTE] === true);
+    
+    if (isFromSync) {
+      // 设置同步处理标志，防止递归调用
+      isProcessingSync = true;
       
-      // 加载前先保存非同步的对象
+      // 保存当前画布上的非同步对象（包括文本和非同步状态下创建的路径）
       const nonSyncObjects = [];
       fabricCanvas.getObjects().forEach(obj => {
-        // 如果对象不是在同步状态下创建，或不是自由绘制的路径对象，则保留
-        if (obj.type === 'text' || obj[SYNC_ATTRIBUTE] !== true) {
-          nonSyncObjects.push(obj);
+        // 保留所有不是同步标注的对象
+        if (obj.type === 'text' || obj.type === 'rect' || obj.type === 'circle' || 
+            (obj.type === 'path' && obj[SYNC_ATTRIBUTE] !== true)) {
+          nonSyncObjects.push(obj.toObject(['selectable', 'hasControls', SYNC_ATTRIBUTE]));
         }
       });
       
-      // 加载新数据
+      // 清空画布并加载新的同步数据
+      fabricCanvas.clear();
+      
+      // 加载同步数据（只包含同步状态下创建的路径）
       fabricCanvas.loadFromJSON(newData, () => {
-        // 从新加载的画布中移除所有非同步对象
-        fabricCanvas.getObjects().forEach(obj => {
-          if ((obj.type !== 'path' || obj[SYNC_ATTRIBUTE] !== true)) {
-            fabricCanvas.remove(obj);
-          }
-        });
-        
-        // 重新添加之前保存的非同步对象
-        nonSyncObjects.forEach(obj => {
-          fabricCanvas.add(obj);
-        });
-        
-        fabricCanvas.renderAll();
+        // 重新添加非同步对象
+        if (nonSyncObjects.length > 0) {
+          fabric.util.enlivenObjects(nonSyncObjects, (objects) => {
+            objects.forEach(obj => {
+              fabricCanvas.add(obj);
+            });
+            fabricCanvas.renderAll();
+            // 清除同步处理标志
+            isProcessingSync = false;
+          });
+        } else {
+          fabricCanvas.renderAll();
+          // 清除同步处理标志
+          isProcessingSync = false;
+        }
       });
     } else {
-      // 正常加载数据
+      // 正常加载数据（通常是本地操作或初始化）
       fabricCanvas.loadFromJSON(newData, () => {
         fabricCanvas.renderAll();
       });

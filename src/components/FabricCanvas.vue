@@ -20,6 +20,11 @@ const props = defineProps({
     type: String,
     default: 'red'
   },
+  // 线宽
+  lineWidth: {
+    type: Number,
+    default: 2
+  },
   // 图像URL，如果有
   imageUrl: {
     type: String,
@@ -34,6 +39,11 @@ const props = defineProps({
   annotationData: {
     type: String,
     default: ''
+  },
+  // 是否启用标注同步
+  isSyncAnnotation: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -44,6 +54,10 @@ let canvas = null;
 let isDrawing = false;
 let currentObject = null;
 let drawingStartPoint = { x: 0, y: 0 };
+// 新增标识属性，用于记录是否是在同步状态下创建的标注
+const SYNC_ATTRIBUTE = 'createdWithSyncEnabled';
+// 防止递归调用的标志
+let isProcessingSync = false;
 
 // 创建Fabric Canvas实例
 const initCanvas = () => {
@@ -100,6 +114,18 @@ const onMouseDown = (options) => {
     return;
   }
   
+  // 橡皮擦模式处理
+  if (props.tool === 'eraser') {
+    // 获取点击位置的对象
+    const target = canvas.findTarget(options.e, false);
+    if (target && (target.type === 'path' || target.type === 'text' || target.type === 'rect' || target.type === 'circle')) {
+      // 删除被点击的标注对象
+      canvas.remove(target);
+      saveAnnotationData();
+    }
+    return;
+  }
+  
   isDrawing = true;
   
   switch (props.tool) {
@@ -150,6 +176,16 @@ const onMouseDown = (options) => {
       canvas.isDrawingMode = true;
       canvas.freeDrawingBrush.color = props.color;
       canvas.freeDrawingBrush.width = 2;
+      break;
+      
+    case 'eraser':
+      // 橡皮擦模式 - 禁用绘图模式，改为点击删除模式
+      canvas.isDrawingMode = false;
+      canvas.selection = false;
+      
+      // 设置鼠标样式为橡皮擦
+      canvas.defaultCursor = 'crosshair';
+      canvas.hoverCursor = 'crosshair';
       break;
   }
 };
@@ -208,7 +244,8 @@ const onMouseUp = () => {
 const saveAnnotationData = () => {
   if (!canvas) return;
   
-  const json = canvas.toJSON();
+  // 将同步属性一并保存到JSON中
+  const json = canvas.toJSON(['selectable', 'hasControls', SYNC_ATTRIBUTE]);
   const jsonString = JSON.stringify(json);
   
   emit('update:annotation-data', jsonString);
@@ -231,15 +268,38 @@ const watchToolChanges = () => {
     if (newTool === 'draw') {
       canvas.isDrawingMode = true;
       canvas.freeDrawingBrush.color = props.color;
-      canvas.freeDrawingBrush.width = 2;
+      canvas.freeDrawingBrush.width = props.lineWidth || 2;
+      
+      // 移除旧的路径创建监听器，避免重复
+      canvas.off('path:created');
+      
+      // 添加事件监听，记录绘制的路径是否是在同步状态下创建的
+      canvas.on('path:created', function(e) {
+        // 将当前的同步状态记录在绘制对象上
+        e.path.set(SYNC_ATTRIBUTE, props.isSyncAnnotation);
+      });
+    } else if (newTool === 'eraser') {
+      canvas.isDrawingMode = false;
+      canvas.selection = false;
+      canvas.defaultCursor = 'crosshair';
+      canvas.hoverCursor = 'crosshair';
     } else {
       canvas.isDrawingMode = false;
+      canvas.selection = true;
+      canvas.defaultCursor = 'default';
+      canvas.hoverCursor = 'move';
     }
   });
   
   watch(() => props.color, (newColor) => {
     if (props.tool === 'draw') {
       canvas.freeDrawingBrush.color = newColor;
+    }
+  });
+  
+  watch(() => props.lineWidth, (newLineWidth) => {
+    if (props.tool === 'draw' && canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.width = newLineWidth;
     }
   });
   
@@ -296,6 +356,68 @@ defineExpose({
   clearCanvas,
   resizeCanvas,
   addBackgroundImage
+});
+
+// 监听标注数据变化
+watch(() => props.annotationData, (newData, oldData) => {
+  if (!canvas || !newData || isProcessingSync) return;
+  
+  try {
+    const parsedData = JSON.parse(newData);
+    const oldParsedData = oldData ? JSON.parse(oldData) : null;
+    
+    // 如果是从其他查看器同步来的数据，且确实是同步操作触发的变化
+    const isFromSync = oldParsedData && parsedData.objects && oldParsedData.objects && 
+        parsedData.objects.length !== oldParsedData.objects.length &&
+        // 确保新数据中只包含同步标注（避免本地添加非同步对象时触发）
+        parsedData.objects.every(obj => obj.type !== 'path' || obj[SYNC_ATTRIBUTE] === true);
+    
+    if (isFromSync) {
+      // 设置同步处理标志，防止递归调用
+      isProcessingSync = true;
+      
+      // 保存当前画布上的非同步对象（包括文本和非同步状态下创建的路径）
+      const nonSyncObjects = [];
+      canvas.getObjects().forEach(obj => {
+        // 保留所有不是同步标注的对象
+        if (obj.type === 'text' || obj.type === 'rect' || obj.type === 'circle' || 
+            (obj.type === 'path' && obj[SYNC_ATTRIBUTE] !== true)) {
+          nonSyncObjects.push(obj.toObject(['selectable', 'hasControls', SYNC_ATTRIBUTE]));
+        }
+      });
+      
+      // 清空画布并加载新的同步数据
+      canvas.clear();
+      
+      // 加载同步数据（只包含同步状态下创建的路径）
+      canvas.loadFromJSON(newData, () => {
+        // 重新添加非同步对象
+        if (nonSyncObjects.length > 0) {
+          fabric.util.enlivenObjects(nonSyncObjects, (objects) => {
+            objects.forEach(obj => {
+              canvas.add(obj);
+            });
+            canvas.renderAll();
+            // 清除同步处理标志
+            isProcessingSync = false;
+          });
+        } else {
+          canvas.renderAll();
+          // 清除同步处理标志
+          isProcessingSync = false;
+        }
+      });
+    } else {
+      // 正常加载数据（通常是本地操作或初始化）
+      canvas.loadFromJSON(newData, () => {
+        canvas.renderAll();
+      });
+    }
+  } catch (error) {
+    console.error('Error loading annotation data:', error);
+    // 出错时也要清标志，避免卡死
+    isProcessingSync = false;
+  }
 });
 
 // 生命周期钩子

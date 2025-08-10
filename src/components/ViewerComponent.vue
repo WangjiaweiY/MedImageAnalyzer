@@ -601,6 +601,13 @@ const handleToolChanged = (toolInfo) => {
   if (toolInfo.lineWidth !== undefined) {
     currentLineWidth.value = toolInfo.lineWidth;
   }
+  
+  // 处理橡皮擦大小参数（虽然现在橡皮擦不使用这个参数，但保留接口）
+  if (toolInfo.eraserSize !== undefined) {
+    // 目前橡皮擦使用点击删除方式，不需要大小参数
+    // 但可以保留这个接口以备将来使用
+    console.log('橡皮擦大小:', toolInfo.eraserSize);
+  }
 };
 
 // 清除标注
@@ -616,8 +623,8 @@ const handleAnnotationChanged = (index) => {
   // 可以在这里添加保存标注数据的逻辑
   console.log(`标注已更改: 查看器 ${index}`);
   
-  // 只有在使用自由绘制工具时才同步标注到其他查看器
-  if (props.isSyncAnnotation && currentTool.value === 'draw') {
+  // 在标注同步开启时，绘制和橡皮擦操作都应该同步到其他查看器
+  if (props.isSyncAnnotation && (currentTool.value === 'draw' || currentTool.value === 'eraser')) {
     syncAnnotationToOtherViewers(index);
   }
 };
@@ -626,12 +633,29 @@ const handleAnnotationChanged = (index) => {
 const syncAnnotationToOtherViewers = (sourceIndex) => {
   if (!annotationData.value[sourceIndex]) return;
   
-  // 将标注数据同步到其他已加载图像的查看器
-  props.viewers.forEach((viewer, targetIndex) => {
-    if (targetIndex !== sourceIndex && viewer !== null) {
-      annotationData.value[targetIndex] = annotationData.value[sourceIndex];
-    }
-  });
+  try {
+    const sourceData = JSON.parse(annotationData.value[sourceIndex]);
+    
+    // 过滤出只有同步状态下创建的标注
+    const syncOnlyData = {
+      ...sourceData,
+      objects: sourceData.objects ? sourceData.objects.filter(obj => {
+        // 只同步在同步状态下创建的对象（路径类型且有同步标记）
+        return obj.type === 'path' && obj.createdWithSyncEnabled === true;
+      }) : []
+    };
+    
+    const syncDataString = JSON.stringify(syncOnlyData);
+    
+    // 将过滤后的标注数据同步到其他已加载图像的查看器
+    props.viewers.forEach((viewer, targetIndex) => {
+      if (targetIndex !== sourceIndex && viewer !== null) {
+        annotationData.value[targetIndex] = syncDataString;
+      }
+    });
+  } catch (error) {
+    console.error('同步标注数据时出错:', error);
+  }
 };
 
 // 检查某个索引的查看器是否有加载的图像
