@@ -50,19 +50,19 @@
           {{ isSyncAnnotation ? '标注同步：开' : '标注同步：关' }}
         </n-tooltip>
         
-        <!-- 添加染色信息显示开关按钮 -->
+        <!-- 扫描信息图显示开关按钮 -->
         <n-tooltip trigger="hover" placement="bottom">
           <template #trigger>
             <n-button 
               circle 
-              :type="showStainInfo ? 'primary' : 'default'"
-              @click="toggleStainInfo"
+              :type="showScanInfo ? 'primary' : 'default'"
+              @click="toggleScanInfo"
               class="stain-info-btn"
             >
               <n-icon><ExperimentOutlined /></n-icon>
             </n-button>
           </template>
-          {{ showStainInfo ? '染色信息：显示' : '染色信息：隐藏' }}
+          {{ showScanInfo ? '扫描信息图：显示' : '扫描信息图：隐藏' }}
         </n-tooltip>
         
         <!-- 分页控制按钮 -->
@@ -189,13 +189,13 @@ const toggleSyncAnnotation = () => {
   emit('update:isSyncAnnotation', isSyncAnnotation.value)
 }
 
-// 染色信息显示开关
-const showStainInfo = ref(true)
+// 扫描信息图显示开关（仅用于本组件按钮状态）
+const showScanInfo = ref(true)
 
-// 切换染色信息显示状态
-const toggleStainInfo = () => {
-  showStainInfo.value = !showStainInfo.value
-  emit('toggleStainInfo', showStainInfo.value)
+// 切换扫描信息图显示状态
+const toggleScanInfo = () => {
+  showScanInfo.value = !showScanInfo.value
+  emit('toggleStainInfo', showScanInfo.value)
 }
 
 // 分页相关

@@ -114,10 +114,10 @@ const updateIsSyncAnnotation = (value) => {
   isSyncAnnotation.value = value
 }
 
-// 切换染色信息显示状态
-const toggleStainInfo = (value) => {
-  viewerStore.toggleStainInfo()
-}
+  // 切换扫描信息图显示状态
+  const toggleStainInfo = (value) => {
+    viewerStore.toggleScanInfo()
+  }
 
 // 使用 viewerStore 中的状态和方法
 const layoutType = computed(() => viewerStore.layoutType)
@@ -233,20 +233,13 @@ const toggleFolder = async (folderName) => {
 const selectDziItem = (parentFolder, item) => {
   const url = `/api/dzi/processed/${parentFolder}/${item.name}/`
   
-  // 更新查看器
-  const viewerIndex = viewerStore.updateViewerDziUrl(url, item.name)
-  
-  // 如果成功更新了查看器，获取染色信息
-  if (viewerIndex !== null && viewerIndex !== undefined) {
-    // 异步获取染色信息
-    viewerStore.fetchStainInfo(viewerIndex, parentFolder, item.name)
-      .catch(error => console.error(`获取染色信息失败: ${error}`))
-  }
+  // 更新查看器（携带folder用于扫描信息图）
+  viewerStore.updateViewerDziUrl(url, item.name, parentFolder)
 }
 
 // 更新DZI URL（从视图组件调用）
-const updateViewerDziUrl = (url, fileName) => {
-  viewerStore.updateViewerDziUrl(url, fileName)
+const updateViewerDziUrl = (url, fileName, folderName = '') => {
+  viewerStore.updateViewerDziUrl(url, fileName, folderName)
 }
 
 // 删除文件夹
@@ -408,10 +401,11 @@ const autoDisplayImages = (folderName, files) => {
     return
   }
   
-  // 准备图像文件数组，包含URL和名称
+  // 准备图像文件数组，包含URL、名称与所属文件夹（用于扫描信息图）
   const imageFiles = files.map(file => ({
     url: `/api/dzi/processed/${folderName}/${file.name}/`,
-    name: file.name
+    name: file.name,
+    folder: folderName
   }))
   
   // 设置所有可用的图像文件到store中
@@ -420,20 +414,7 @@ const autoDisplayImages = (folderName, files) => {
   // 获取分页信息并显示第一页
   viewerStore.displayImagesByPage(1)
   
-  // 为每个显示的图像获取染色信息
-  // 延迟获取，确保查看器已初始化完成
-  setTimeout(() => {
-    const currentImages = viewerStore.currentDisplayedImages
-    const currentViewers = viewerStore.viewers
-    
-    currentImages.forEach((image, index) => {
-      if (currentViewers[index]) {
-        // 异步获取染色信息
-        viewerStore.fetchStainInfo(index, folderName, image.name)
-          .catch(error => console.error(`获取染色信息失败: ${error}`))
-      }
-    })
-  }, 500)
+  // 不再获取染色信息
 }
 
 // 处理文件夹上传成功后的回调

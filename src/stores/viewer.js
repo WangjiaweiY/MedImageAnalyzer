@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import OpenSeadragon from 'openseadragon'
-import { imageApi } from '@/services/api'
 
 export const useViewerStore = defineStore('viewer', {
   state: () => ({
@@ -25,53 +24,18 @@ export const useViewerStore = defineStore('viewer', {
     currentDisplayedImages: [],
     allImageFiles: [],
     
-    // 染色信息相关
-    showStainInfo: true,  // 是否显示染色信息
-    imageStainInfo: []     // 存储每个图像的染色信息
+    // 扫描信息图显示开关
+    showScanInfo: true,
+    // 每个查看器对应的文件夹名称（用于构建扫描信息图URL）
+    viewerFolderNames: []
   }),
   
   actions: {
     /**
-     * 切换染色信息显示状态
+     * 切换扫描信息图显示状态
      */
-    toggleStainInfo() {
-      this.showStainInfo = !this.showStainInfo
-    },
-    
-    /**
-     * 获取图像染色信息
-     * @param {number} index - 图像索引
-     * @param {string} folderName - 文件夹名称
-     * @param {string} fileName - 文件名
-     */
-    async fetchStainInfo(index, folderName, fileName) {
-      try {
-        // 如果文件名包含路径分隔符，提取真实文件名
-        const realFileName = fileName.includes('/') ? 
-          fileName.substring(fileName.lastIndexOf('/') + 1) : fileName
-        
-        // 调用API获取染色信息
-        const stainInfo = await imageApi.getImageStainInfo(folderName, realFileName)
-        
-        // 确保imageStainInfo数组有足够的长度
-        while (this.imageStainInfo.length <= index) {
-          this.imageStainInfo.push({ stainType: '未知' })
-        }
-        
-        // 更新染色信息
-        this.imageStainInfo[index] = stainInfo
-        
-        return stainInfo
-      } catch (error) {
-        console.error(`获取染色信息失败: ${error.message}`)
-        
-        // 确保imageStainInfo数组有足够的长度并设置默认值
-        while (this.imageStainInfo.length <= index) {
-          this.imageStainInfo.push({ stainType: '未知' })
-        }
-        
-        return { stainType: '未知' }
-      }
+    toggleScanInfo() {
+      this.showScanInfo = !this.showScanInfo
     },
     
     /**
@@ -82,6 +46,7 @@ export const useViewerStore = defineStore('viewer', {
       this.viewers.forEach(v => v && v.destroy())
       this.viewers = []
       this.viewerFileNames = []
+      this.viewerFolderNames = []
       
       // 根据布局创建新的查看器数组
       let viewerCount = this.layoutType;
@@ -96,6 +61,7 @@ export const useViewerStore = defineStore('viewer', {
       for (let i = 0; i < viewerCount; i++) {
         this.viewers.push(null)
         this.viewerFileNames.push('')
+        this.viewerFolderNames.push('')
       }
     },
     
@@ -103,9 +69,10 @@ export const useViewerStore = defineStore('viewer', {
      * 更新指定查看器的DZI URL
      * @param {string} url - DZI资源URL
      * @param {string} fileName - 文件名
+     * @param {string} folderName - 文件夹名
      * @returns {number|null} - 返回更新的查看器索引，如果失败则返回null
      */
-    updateViewerDziUrl(url, fileName) {
+    updateViewerDziUrl(url, fileName, folderName) {
       if (this.selectedViewerIndex === null) {
         return null;
       }
@@ -117,6 +84,7 @@ export const useViewerStore = defineStore('viewer', {
       
       // 更新文件名
       this.viewerFileNames[this.selectedViewerIndex] = fileName;
+      this.viewerFolderNames[this.selectedViewerIndex] = folderName || '';
       
       // 创建新查看器
       this.viewers[this.selectedViewerIndex] = OpenSeadragon({
@@ -166,9 +134,10 @@ export const useViewerStore = defineStore('viewer', {
      * @param {number} index - 查看器索引
      * @param {string} url - DZI资源URL
      * @param {string} fileName - 文件名
+     * @param {string} folderName - 文件夹名
      * @returns {number|null} - 返回更新的查看器索引，如果失败则返回null
      */
-    updateViewerAtIndex(index, url, fileName) {
+    updateViewerAtIndex(index, url, fileName, folderName) {
       // 检查索引是否有效
       if (index < 0 || index >= this.viewers.length) {
         console.error(`无效的查看器索引: ${index}`)
@@ -182,6 +151,7 @@ export const useViewerStore = defineStore('viewer', {
       
       // 更新文件名
       this.viewerFileNames[index] = fileName
+      this.viewerFolderNames[index] = folderName || ''
       
       // 创建新查看器
       this.viewers[index] = OpenSeadragon({
@@ -242,6 +212,7 @@ export const useViewerStore = defineStore('viewer', {
         this.viewers[index].destroy()
         this.viewers[index] = null
         this.viewerFileNames[index] = ''
+        this.viewerFolderNames[index] = ''
       }
       
       return true
@@ -370,7 +341,7 @@ export const useViewerStore = defineStore('viewer', {
       
       // 加载当前页的图像
       pageImages.forEach((image, index) => {
-        this.updateViewerAtIndex(index, image.url, image.name)
+        this.updateViewerAtIndex(index, image.url, image.name, image.folder)
       })
       
       // 更新当前页码

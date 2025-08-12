@@ -29,12 +29,17 @@
           </n-button>
         </div>
         
-        <!-- 添加染色信息显示 -->
+        <!-- 扫描信息图叠加显示 -->
         <div 
-          v-if="hasDzi(index) && showStainInfo && imageStainInfo[index]" 
-          class="stain-info-wrapper"
+          v-if="hasDzi(index) && showScanInfo"
+          class="scan-info-wrapper"
         >
-          <div class="stain-info">{{ imageStainInfo[index].stainType }}</div>
+          <img 
+            class="scan-info-image"
+            :src="getScanInfoImageUrl(index)"
+            alt="扫描信息图"
+            @error="handleScanInfoLoadError"
+          />
         </div>
         
         <div :id="`osdViewer-${index}`" class="osd-viewer"></div>
@@ -114,12 +119,12 @@
           </div>
         </div>
         
-        <!-- 添加染色信息显示 - 大图 -->
+        <!-- 扫描信息图叠加显示 - 大图 -->
         <div 
-          v-if="hasDzi(0) && showStainInfo && imageStainInfo[0]" 
-          class="stain-info-wrapper"
+          v-if="hasDzi(0) && showScanInfo" 
+          class="scan-info-wrapper"
         >
-          <div class="stain-info">{{ imageStainInfo[0].stainType }}</div>
+          <img class="scan-info-image" :src="getScanInfoImageUrl(0)" alt="扫描信息图" @error="handleScanInfoLoadError" />
         </div>
         
         <!-- 其他组件保持不变 -->
@@ -152,12 +157,9 @@
             </div>
           </div>
           
-          <!-- 添加染色信息显示 - 小图 -->
-          <div 
-            v-if="hasDzi(index) && showStainInfo && imageStainInfo[index]" 
-            class="stain-info-wrapper small-stain"
-          >
-            <div class="stain-info">{{ imageStainInfo[index].stainType }}</div>
+          <!-- 扫描信息图叠加显示 - 小图 -->
+          <div v-if="hasDzi(index) && showScanInfo" class="scan-info-wrapper small-scan">
+            <img class="scan-info-image" :src="getScanInfoImageUrl(index)" alt="扫描信息图" @error="handleScanInfoLoadError" />
           </div>
           
           <!-- 其他组件保持不变 -->
@@ -194,12 +196,9 @@
             </div>
           </div>
           
-          <!-- 添加染色信息显示 - 小图 -->
-          <div 
-            v-if="hasDzi(index - 1) && showStainInfo && imageStainInfo[index - 1]" 
-            class="stain-info-wrapper small-stain"
-          >
-            <div class="stain-info">{{ imageStainInfo[index - 1].stainType }}</div>
+          <!-- 扫描信息图叠加显示 - 小图 -->
+          <div v-if="hasDzi(index - 1) && showScanInfo" class="scan-info-wrapper small-scan">
+            <img class="scan-info-image" :src="getScanInfoImageUrl(index - 1)" alt="扫描信息图" @error="handleScanInfoLoadError" />
           </div>
           
           <!-- 其他组件保持不变 -->
@@ -231,12 +230,9 @@
           </div>
         </div>
         
-        <!-- 添加染色信息显示 - 大图 -->
-        <div 
-          v-if="hasDzi(4) && showStainInfo && imageStainInfo[4]" 
-          class="stain-info-wrapper"
-        >
-          <div class="stain-info">{{ imageStainInfo[4].stainType }}</div>
+        <!-- 扫描信息图叠加显示 - 大图 -->
+        <div v-if="hasDzi(4) && showScanInfo" class="scan-info-wrapper">
+          <img class="scan-info-image" :src="getScanInfoImageUrl(4)" alt="扫描信息图" @error="handleScanInfoLoadError" />
         </div>
         
         <!-- 其他组件保持不变 -->
@@ -308,9 +304,19 @@ const currentLineWidth = ref(0.5);
 const annotationCanvasRefs = ref([]);
 const annotationData = ref([]);
 
-// 染色信息相关状态和计算属性
-const showStainInfo = computed(() => viewerStore.showStainInfo);
-const imageStainInfo = computed(() => viewerStore.imageStainInfo);
+// 扫描信息图相关
+const showScanInfo = computed(() => viewerStore.showScanInfo);
+const getScanInfoImageUrl = (index) => {
+  const folder = viewerStore.viewerFolderNames[index] || ''
+  const name = viewerStore.viewerFileNames[index] || ''
+  if (!folder || !name) return ''
+  // 假设扫描信息图由后端提供：/api/dzi/scan-info/{folder}/{file}.png
+  return `/api/dzi/scan-info/${encodeURIComponent(folder)}/${encodeURIComponent(name)}.png`
+}
+const handleScanInfoLoadError = (e) => {
+  // 隐藏无法加载的占位图，避免破图
+  if (e && e.target) e.target.style.display = 'none'
+}
 
 // 关闭图像
 const closeImage = (index) => {
@@ -1186,33 +1192,31 @@ onMounted(() => {
   overflow-y: hidden;
 }
 
-/* 染色信息样式 */
-.stain-info-wrapper {
+/* 扫描信息图样式 */
+.scan-info-wrapper {
   position: absolute;
-  bottom: 15px;
-  left: 15px;
+  bottom: 12px;
+  left: 12px;
   z-index: 50;
-  pointer-events: none; /* 确保点击事件穿透到底层 */
+  pointer-events: none;
+  /* 宽度随查看器容器自适应：不小于200px，不大于480px，默认取容器宽度的28% */
+  width: clamp(200px, 28%, 480px);
 }
 
-.stain-info {
-  background-color: white;
-  color: #e74c3c; /* 红色文本 */
-  font-weight: bold;
-  padding: 6px 12px;
+.scan-info-image {
+  /* 图片宽度占满其父容器，等比缩放 */
+  width: 100%;
+  height: auto;
   border-radius: 6px;
-  font-size: 16px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(231, 76, 60, 0.3); /* 淡红色边框 */
-  min-width: 80px;
-  text-align: center;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.85);
 }
 
-/* 小图染色信息样式 */
-.small-stain .stain-info {
-  font-size: 14px;
-  padding: 4px 8px;
-  min-width: 60px;
+/* 小图尺寸优化：直接控制外层容器宽度 */
+.small-scan {
+  /* 宽度在 140px 到 360px，默认取容器宽度的35% */
+  width: clamp(140px, 35%, 360px);
 }
 
 </style> 
