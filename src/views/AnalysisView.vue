@@ -420,6 +420,39 @@ const autoDisplayImages = (folderName, files) => {
 // 处理文件夹上传成功后的回调
 const handleFolderUploaded = (folderName) => {
   fetchFileList()
+  
+  // 设置一个标记，用于在配准完成后自动展示
+  if (folderName) {
+    localStorage.setItem('auto_display_folder', folderName)
+  }
+}
+
+// 处理配准完成后的自动展示
+const handleAutoDisplayAfterRegistration = async (folderName) => {
+  try {
+    // 展开该文件夹
+    if (!expandedFolders.value[folderName]) {
+      await toggleFolder(folderName)
+    }
+    
+    // 设置为选中文件夹
+    selectedFolder.value = folderName
+    
+    // 获取文件夹中的文件
+    const files = folderDziFiles.value[folderName]
+    if (files && files.length > 0) {
+      // 自动展示该文件夹的图片
+      autoDisplayImages(folderName, files)
+      
+      // 显示成功提示
+      message.success(`配准完成！已自动加载文件夹「${folderName}」的图像`)
+    } else {
+      message.info(`配准完成！文件夹「${folderName}」已展开，请选择要查看的图像`)
+    }
+  } catch (error) {
+    console.error('自动展示配准结果失败:', error)
+    message.error('配准完成，但自动展示失败，请手动选择查看')
+  }
 }
 
 // 检查活跃配准任务的状态
@@ -457,9 +490,21 @@ const checkActiveRegistrationTask = async () => {
                 registrationInProgress.value = false
               }
               
-              // 如果任务完成，刷新文件列表
+              // 如果任务完成，刷新文件列表并检查是否需要自动展示
               if (status === 'completed') {
                 fetchFileList()
+                
+                // 检查是否需要自动展示刚配准完成的文件夹
+                const autoDisplayFolder = localStorage.getItem('auto_display_folder')
+                if (autoDisplayFolder && autoDisplayFolder === task.folder) {
+                  // 延迟一点时间确保文件列表已刷新
+                  setTimeout(() => {
+                    handleAutoDisplayAfterRegistration(autoDisplayFolder)
+                  }, 2000)
+                  
+                  // 清除标记
+                  localStorage.removeItem('auto_display_folder')
+                }
               }
             }
           }

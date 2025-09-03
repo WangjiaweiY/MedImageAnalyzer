@@ -276,6 +276,61 @@
         </div>
       </div>
     </div>
+
+    <!-- 配准引导弹窗 -->
+    <div v-if="showRegistrationGuidance" class="custom-modal-overlay">
+      <div class="custom-modal-box guidance-modal">
+        <div class="modal-header">
+          <span class="modal-title">上传完成！</span>
+          <button class="modal-close-btn" @click="closeRegistrationGuidance">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="guidance-content">
+            <div class="guidance-icon">
+              <n-icon size="48" color="#52c41a"><CheckCircleOutlined /></n-icon>
+            </div>
+            <h3 class="guidance-title">文件夹「{{ currentUploadedFolder }}」上传成功！</h3>
+            <div class="guidance-message">
+              <p>为了能够正常查看和分析图像，需要先进行<strong>配准处理</strong>。</p>
+              <p>配准过程会：</p>
+              <ul>
+                <li>优化图像质量和对齐</li>
+                <li>生成适合查看的图像格式</li>
+                <li>准备分析所需的数据结构</li>
+              </ul>
+              <p class="guidance-note">
+                <n-icon><ExclamationCircleOutlined /></n-icon>
+                配准单张图像通常需要几分钟到十几分钟，具体时间取决于图像大小和数量。
+              </p>
+            </div>
+            
+            <div v-if="guidanceRegistrationInProgress" class="guidance-progress">
+              <div class="progress-info">
+                <n-icon size="20" color="#1890ff"><ClockCircleOutlined /></n-icon>
+                <span>正在配准处理中，请稍候...</span>
+              </div>
+              <n-progress :percentage="currentGuidanceProgress" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div class="footer-actions">
+            <n-button @click="closeRegistrationGuidance" size="large">
+              稍后手动配准
+            </n-button>
+            <n-button 
+              type="primary" 
+              size="large"
+              :loading="guidanceRegistrationInProgress"
+              @click="startGuidanceRegistration"
+              :disabled="guidanceRegistrationInProgress"
+            >
+              {{ guidanceRegistrationInProgress ? '配准中...' : '立即开始配准' }}
+            </n-button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -292,7 +347,8 @@ import {
   NList, 
   NListItem, 
   NThing, 
-  NTag 
+  NTag,
+  NProgress
 } from 'naive-ui'
 import { 
   ReloadOutlined,
@@ -374,6 +430,13 @@ const selectedFiles = ref([])
 const folderName = ref('')
 const uploadedFolders = ref([])
 const registeredFolders = ref([])
+
+// 配准引导相关状态
+const showRegistrationGuidance = ref(false)
+const currentUploadedFolder = ref('')
+const guidanceRegistrationInProgress = ref(false)
+const currentGuidanceProgress = ref(0)
+let guidanceProgressTimer = null
 
 // 配准任务相关
 const currentTask = ref(null)
@@ -606,6 +669,11 @@ const startUploadFolder = async (index) => {
     uploadedFolders.value[index].progress = 100
     uploadedFolders.value[index].uploadedBytes = totalSize
     uploadedFolders.value[index].formattedUploadedSize = uploadedFolders.value[index].formattedTotalSize
+    
+    // 显示配准引导弹窗
+    showRegistrationGuidance.value = true
+    currentUploadedFolder.value = folder.name
+    
     emit('folderUploaded', folder.name)
     
   } catch (error) {
@@ -1037,6 +1105,81 @@ const calculateAverageStats = (data) => {
       avgTotalArea: validTotalAreaCount > 0 ? totalArea / validTotalAreaCount : 0
     }
   ]
+}
+
+// 配准引导相关方法
+const closeRegistrationGuidance = () => {
+  showRegistrationGuidance.value = false
+  currentUploadedFolder.value = ''
+  guidanceRegistrationInProgress.value = false
+  currentGuidanceProgress.value = 0
+  if (guidanceProgressTimer) {
+    clearInterval(guidanceProgressTimer)
+    guidanceProgressTimer = null
+  }
+}
+
+const startGuidanceRegistration = async () => {
+  if (!currentUploadedFolder.value) {
+    message.error('未找到要配准的文件夹')
+    return
+  }
+  
+  try {
+    guidanceRegistrationInProgress.value = true
+    currentGuidanceProgress.value = 0
+    
+    // 开始配准进度模拟（实际应该通过API获取真实进度）
+    guidanceProgressTimer = setInterval(() => {
+      if (currentGuidanceProgress.value < 90) {
+        currentGuidanceProgress.value += Math.random() * 10
+      }
+    }, 1000)
+    
+    // 调用配准API
+    const response = await registrationService.submitTask(currentUploadedFolder.value)
+    
+    if (response && response.code === 1 && response.data) {
+      const taskData = response.data
+      message.success(`配准任务已启动，任务ID: ${taskData.taskId}`)
+      
+      // 保存任务信息
+      registrationService.saveTaskToLocalStorage(currentUploadedFolder.value, {
+        taskId: taskData.taskId,
+        folder: currentUploadedFolder.value,
+        status: 'pending',
+        progress: 0,
+        message: taskData.message || '任务已提交，等待处理',
+        startTime: new Date().toISOString()
+      })
+      
+      // 完成进度
+      currentGuidanceProgress.value = 100
+      
+      // 延迟关闭弹窗并提示
+      setTimeout(() => {
+        closeRegistrationGuidance()
+        message.info('配准任务已在后台运行，您可以在配准页面查看进度')
+        
+        // 触发父组件刷新文件列表
+        emit('folderUploaded', currentUploadedFolder.value)
+      }, 1500)
+      
+    } else {
+      throw new Error(response?.msg || "未获取到有效的任务ID")
+    }
+    
+  } catch (error) {
+    console.error("配准启动失败:", error)
+    message.error(`配准启动失败: ${error.message || "未知错误"}`)
+    guidanceRegistrationInProgress.value = false
+    currentGuidanceProgress.value = 0
+    
+    if (guidanceProgressTimer) {
+      clearInterval(guidanceProgressTimer)
+      guidanceProgressTimer = null
+    }
+  }
 }
 </script>
 
@@ -1784,5 +1927,85 @@ const calculateAverageStats = (data) => {
 .modal-btn[href] {
   text-decoration: none;
   display: inline-block;
+}
+
+/* 配准引导弹窗样式 */
+.guidance-modal {
+  width: 600px;
+  max-width: 90vw;
+}
+
+.guidance-content {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.guidance-icon {
+  margin-bottom: 20px;
+}
+
+.guidance-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a2b4b;
+  margin-bottom: 20px;
+}
+
+.guidance-message {
+  text-align: left;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.guidance-message p {
+  margin-bottom: 12px;
+}
+
+.guidance-message ul {
+  margin: 12px 0;
+  padding-left: 20px;
+}
+
+.guidance-message li {
+  margin-bottom: 6px;
+  color: #555;
+}
+
+.guidance-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 6px;
+  color: #d46b08;
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+.guidance-progress {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f0f7ff;
+  border-radius: 8px;
+  border: 1px solid #d6e4ff;
+}
+
+.progress-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
 }
 </style> 
