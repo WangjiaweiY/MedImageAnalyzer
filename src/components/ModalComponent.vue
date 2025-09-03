@@ -113,13 +113,50 @@
           <button class="modal-close-btn" @click="closeUploadModal">×</button>
         </div>
         <div class="modal-body">
+          <!-- 文件类型选择 -->
+          <div class="file-type-selection">
+            <div class="selection-header">
+              <h4>选择图像格式</h4>
+              <p class="selection-description">请选择您要上传的病理图像格式，系统将验证文件类型</p>
+            </div>
+            <div class="type-selector">
+              <n-select
+                v-model:value="selectedFileType"
+                :options="fileTypeOptions"
+                placeholder="请选择图像格式"
+                size="large"
+                @update:value="onFileTypeChange"
+              />
+            </div>
+            <div class="format-info">
+              <div class="supported-formats">
+                <span class="format-label">当前支持：</span>
+                <n-tag v-for="format in getCurrentSupportedFormats()" :key="format" type="info" size="small">
+                  {{ format }}
+                </n-tag>
+              </div>
+              <div class="progress-note">
+                <n-icon size="14"><ExclamationCircleOutlined /></n-icon>
+                <span>更多格式适配工作飞速进行中，敬请期待～</span>
+              </div>
+            </div>
+          </div>
+
           <!-- 已选择的文件夹列表 -->
           <div class="upload-files-list">
             <template v-if="uploadedFolders.length > 0">
               <div v-for="(folder, index) in uploadedFolders" :key="index" class="upload-folder-item">
                 <div class="upload-folder-info">
                   <div class="folder-name">{{ folder.name }}</div>
-                  <div class="file-count">{{ folder.fileCount }}个文件</div>
+                  <div class="file-info">
+                    <span class="file-count">{{ folder.fileCount }}个文件</span>
+                    <span v-if="folder.fileType" class="file-type-badge">
+                      {{ FILE_FORMATS[folder.fileType]?.name }}
+                    </span>
+                    <span v-if="folder.invalidFileCount > 0" class="invalid-count">
+                      (过滤{{ folder.invalidFileCount }}个)
+                    </span>
+                  </div>
                 </div>
                 <div class="upload-progress-wrapper">
                   <div v-if="folder.status === 'uploading'" class="upload-progress">
@@ -151,9 +188,18 @@
         </div>
         <div class="modal-footer">
           <div class="footer-left">
-            <label class="upload-label">
-              <input type="file" webkitdirectory multiple @change="handleFileSelection" class="file-input" />
-              <span class="upload-button">选择文件夹</span>
+            <label class="upload-label" :class="{ disabled: !selectedFileType }">
+              <input 
+                type="file" 
+                webkitdirectory 
+                multiple 
+                @change="handleFileSelection" 
+                class="file-input"
+                :disabled="!selectedFileType"
+              />
+              <span class="upload-button">
+                {{ selectedFileType ? '选择文件夹' : '请先选择格式' }}
+              </span>
             </label>
           </div>
           <div class="footer-right">
@@ -348,7 +394,8 @@ import {
   NListItem, 
   NThing, 
   NTag,
-  NProgress
+  NProgress,
+  NSelect
 } from 'naive-ui'
 import { 
   ReloadOutlined,
@@ -437,6 +484,127 @@ const currentUploadedFolder = ref('')
 const guidanceRegistrationInProgress = ref(false)
 const currentGuidanceProgress = ref(0)
 let guidanceProgressTimer = null
+
+// 文件类型选择相关状态
+const selectedFileType = ref(null)
+
+// 定义支持的文件格式
+const FILE_FORMATS = {
+  svs: {
+    name: 'SVS 格式',
+    description: 'Aperio 数字病理扫描仪格式',
+    extensions: ['.svs']
+  },
+  tiff: {
+    name: 'TIFF 格式',
+    description: '通用 TIFF 图像格式',
+    extensions: ['.tif', '.tiff']
+  },
+  ndpi: {
+    name: 'NDPI 格式',
+    description: 'Hamamatsu 数字病理扫描仪格式',
+    extensions: ['.ndpi']
+  },
+  vms: {
+    name: 'VMS/VMU 格式',
+    description: 'Hamamatsu VMS 扫描仪格式',
+    extensions: ['.vms', '.vmu']
+  },
+  scn: {
+    name: 'SCN 格式',
+    description: 'Leica 数字病理扫描仪格式',
+    extensions: ['.scn']
+  },
+  mrxs: {
+    name: 'MRXS 格式',
+    description: '3DHISTECH 数字病理扫描仪格式',
+    extensions: ['.mrxs']
+  },
+  bif: {
+    name: 'BIF 格式',
+    description: 'Ventana 数字病理扫描仪格式',
+    extensions: ['.bif']
+  },
+  czi: {
+    name: 'CZI 格式',
+    description: 'ZEISS 显微镜图像格式',
+    extensions: ['.czi']
+  },
+  lsm: {
+    name: 'LSM 格式',
+    description: 'ZEISS LSM 激光扫描显微镜格式',
+    extensions: ['.lsm']
+  },
+  qptiff: {
+    name: 'QPTIFF 格式',
+    description: 'PerkinElmer 数字病理格式',
+    extensions: ['.qptiff']
+  },
+  kfb: {
+    name: 'KFB 格式',
+    description: '江丰生物病理扫描仪专用格式',
+    extensions: ['.kfb']
+  }
+}
+
+// 文件类型选择选项
+const fileTypeOptions = [
+  {
+    label: 'SVS 格式 (Aperio)',
+    value: 'svs',
+    description: 'Aperio 数字病理扫描仪格式'
+  },
+  {
+    label: 'TIFF 格式 (通用)',
+    value: 'tiff',
+    description: '通用 TIFF 图像格式 (.tif, .tiff)'
+  },
+  {
+    label: 'NDPI 格式 (Hamamatsu)',
+    value: 'ndpi',
+    description: 'Hamamatsu 数字病理扫描仪格式'
+  },
+  {
+    label: 'VMS/VMU 格式 (Hamamatsu)',
+    value: 'vms',
+    description: 'Hamamatsu VMS 扫描仪格式'
+  },
+  {
+    label: 'SCN 格式 (Leica)',
+    value: 'scn',
+    description: 'Leica 数字病理扫描仪格式'
+  },
+  {
+    label: 'MRXS 格式 (3DHISTECH)',
+    value: 'mrxs',
+    description: '3DHISTECH 数字病理扫描仪格式'
+  },
+  {
+    label: 'BIF 格式 (Ventana)',
+    value: 'bif',
+    description: 'Ventana 数字病理扫描仪格式'
+  },
+  {
+    label: 'CZI 格式 (ZEISS)',
+    value: 'czi',
+    description: 'ZEISS 显微镜图像格式'
+  },
+  {
+    label: 'LSM 格式 (ZEISS)',
+    value: 'lsm',
+    description: 'ZEISS LSM 激光扫描显微镜格式'
+  },
+  {
+    label: 'QPTIFF 格式 (PerkinElmer)',
+    value: 'qptiff',
+    description: 'PerkinElmer 数字病理格式'
+  },
+  {
+    label: 'KFB 格式 (江丰生物)',
+    value: 'kfb',
+    description: '江丰生物病理扫描仪专用格式'
+  }
+]
 
 // 配准任务相关
 const currentTask = ref(null)
@@ -580,7 +748,24 @@ watch(() => props.registrationModalVisible, async (newValue) => {
 
 // 处理文件选择
 const handleFileSelection = (event) => {
-  selectedFiles.value = Array.from(event.target.files)
+  // 检查是否已选择文件类型
+  if (!selectedFileType.value) {
+    message.warning('请先选择图像格式类型')
+    event.target.value = '' // 清空文件选择
+    return
+  }
+  
+  const files = Array.from(event.target.files)
+  
+  // 验证文件格式
+  const validationResult = validateFileTypes(files, selectedFileType.value)
+  if (!validationResult.isValid) {
+    message.error(validationResult.message)
+    event.target.value = '' // 清空文件选择
+    return
+  }
+  
+  selectedFiles.value = validationResult.validFiles
   
   // 提取文件夹名称
   if (selectedFiles.value.length > 0) {
@@ -594,10 +779,19 @@ const handleFileSelection = (event) => {
         fileCount: selectedFiles.value.length,
         files: selectedFiles.value,
         status: 'uploading',
-        progress: 0
+        progress: 0,
+        fileType: selectedFileType.value,
+        invalidFileCount: validationResult.invalidFiles.length
       }
       
       uploadedFolders.value.push(newFolder)
+      
+      // 显示验证结果信息
+      if (validationResult.invalidFiles.length > 0) {
+        message.warning(`已过滤 ${validationResult.invalidFiles.length} 个不匹配的文件，将上传 ${selectedFiles.value.length} 个有效文件`)
+      } else {
+        message.success(`文件格式验证通过，共 ${selectedFiles.value.length} 个文件`)
+      }
       
       // 自动开始上传
       startUploadFolder(uploadedFolders.value.length - 1)
@@ -714,6 +908,7 @@ const closeUploadModal = () => {
   // 只清空当前选择的文件，保留上传历史
   selectedFiles.value = []
   folderName.value = ''
+  selectedFileType.value = null
 }
 
 const message = useMessage()
@@ -1180,6 +1375,57 @@ const startGuidanceRegistration = async () => {
       guidanceProgressTimer = null
     }
   }
+}
+
+// 文件类型验证函数
+const validateFileTypes = (files, selectedType) => {
+  const allowedExtensions = FILE_FORMATS[selectedType]?.extensions || []
+  const validFiles = []
+  const invalidFiles = []
+  
+  files.forEach(file => {
+    const fileName = file.name.toLowerCase()
+    const isValid = allowedExtensions.some(ext => fileName.endsWith(ext.toLowerCase()))
+    
+    if (isValid) {
+      validFiles.push(file)
+    } else {
+      invalidFiles.push(file)
+    }
+  })
+  
+  // 如果没有任何有效文件
+  if (validFiles.length === 0) {
+    return {
+      isValid: false,
+      message: `所选文件夹中没有找到 ${FILE_FORMATS[selectedType]?.name} 格式的文件。支持的格式：${allowedExtensions.join(', ')}`,
+      validFiles: [],
+      invalidFiles: files
+    }
+  }
+  
+  return {
+    isValid: true,
+    message: '',
+    validFiles,
+    invalidFiles
+  }
+}
+
+// 获取当前选中类型支持的格式
+const getCurrentSupportedFormats = () => {
+  if (!selectedFileType.value) {
+    return ['请先选择格式类型']
+  }
+  return FILE_FORMATS[selectedFileType.value]?.extensions || []
+}
+
+// 文件类型变化处理
+const onFileTypeChange = (value) => {
+  selectedFileType.value = value
+  // 清空之前选择的文件
+  selectedFiles.value = []
+  folderName.value = ''
 }
 </script>
 
@@ -2007,5 +2253,104 @@ const startGuidanceRegistration = async () => {
   gap: 12px;
   justify-content: center;
   width: 100%;
+}
+
+/* 文件类型选择样式 */
+.file-type-selection {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.selection-header h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a2b4b;
+  margin: 0 0 8px 0;
+}
+
+.selection-description {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 16px 0;
+  line-height: 1.4;
+}
+
+.type-selector {
+  margin-bottom: 16px;
+}
+
+.format-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.supported-formats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.format-label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.progress-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #fa8c16;
+  background: #fff7e6;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #ffd591;
+}
+
+/* 文件信息样式 */
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.file-type-badge {
+  background: #e6f7ff;
+  color: #1890ff;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+  border: 1px solid #91d5ff;
+}
+
+.invalid-count {
+  color: #fa8c16;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* 禁用状态的上传按钮 */
+.upload-label.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.upload-label.disabled .upload-button {
+  background: linear-gradient(135deg, #d9d9d9 0%, #bfbfbf 100%);
+  cursor: not-allowed;
+}
+
+.upload-label.disabled:hover .upload-button {
+  background: linear-gradient(135deg, #d9d9d9 0%, #bfbfbf 100%);
+  transform: none;
+  box-shadow: 0 3px 12px rgba(217, 217, 217, 0.25);
 }
 </style> 
