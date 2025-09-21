@@ -317,10 +317,13 @@ const openRegistrationModal = async () => {
   }
 }
 
-// 开始配准过程
-const startRegistration = async () => {
+// 开始配准/仅转换过程（从子组件接收 { folder, register }）
+const startRegistration = async (payload) => {
   try {
-    if (!selectedRegistrationFolder.value) {
+    const folderParam = typeof payload === 'object' ? payload.folder : selectedRegistrationFolder.value
+    const registerParam = typeof payload === 'object' ? !!payload.register : true
+    
+    if (!folderParam) {
       message.error("请选择一个文件夹进行配准")
       return
     }
@@ -336,20 +339,20 @@ const startRegistration = async () => {
     registrationProgress.value = 0
     
     // 调用配准API - 注意这里不需要手动设置isTaskInProgress，submitTask方法内部会设置
-    const response = await registrationService.submitTask(selectedRegistrationFolder.value)
+    const response = await registrationService.submitTask(folderParam, registerParam)
     
     // 根据API文档解析响应
     if (response && response.code === 1 && response.data) {
       const taskData = response.data
-      message.success(`配准任务已提交，任务ID: ${taskData.taskId}`)
+      message.success(`${registerParam ? '配准' : '转换'}任务已提交，任务ID: ${taskData.taskId}`)
       
       // 保存任务信息到本地存储，便于下次恢复
-      registrationService.saveTaskToLocalStorage(selectedRegistrationFolder.value, {
+      registrationService.saveTaskToLocalStorage(folderParam, {
         taskId: taskData.taskId,
-        folder: selectedRegistrationFolder.value,
+        folder: folderParam,
         status: 'pending',
         progress: 0,
-        message: taskData.message || '任务已提交，等待处理',
+        message: taskData.message || `${registerParam ? '配准' : '转换'}任务已提交，等待处理`,
         startTime: new Date().toISOString()
       })
       

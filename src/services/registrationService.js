@@ -28,7 +28,7 @@ const registrationService = {
    * @param {String} folder - 文件夹名称
    * @returns {Promise} - 返回包含taskId的Promise
    */
-  async submitTask(folder) {
+  async submitTask(folder, register = true) {
     // 检查是否已有任务在进行中
     if (isRegistrationInProgress) {
       throw new Error('已有配准任务正在进行中，请等待当前任务完成');
@@ -38,8 +38,8 @@ const registrationService = {
       // 设置任务进行中状态
       isRegistrationInProgress = true;
       
-      // 提交任务
-      const response = await api.post(`/svs/submit?folder=${encodeURIComponent(folder)}`, null);
+      // 提交任务，支持仅转换为DZI（不配准）：register=false
+      const response = await api.post(`/svs/submit?folder=${encodeURIComponent(folder)}&register=${register}`, null);
       return response;
     } catch (error) {
       // 如果提交失败，重置状态

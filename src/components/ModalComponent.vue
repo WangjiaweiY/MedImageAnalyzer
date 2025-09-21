@@ -82,6 +82,15 @@
                 <span v-if="isFolderAlreadyRegistered(folder.folderName)" class="status-tag">已配准</span>
               </li>
             </ul>
+
+            <!-- 配准模式选择 -->
+            <div class="registration-mode">
+              <div class="mode-title">处理模式</div>
+              <n-radio-group v-model:value="registrationMode" name="registration-mode">
+                <n-radio :value="'register'">配准并转换（推荐）</n-radio>
+                <n-radio :value="'convert_only'">不配准</n-radio>
+              </n-radio-group>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -91,7 +100,7 @@
               @click="startRegistration" 
               :disabled="!selectedRegistrationFolderValue || isRegistrationTaskInProgress || isFolderAlreadyRegistered(selectedRegistrationFolderValue)"
             >
-              {{ isFolderAlreadyRegistered(selectedRegistrationFolderValue) ? '已配准' : '开始配准' }}
+              {{ isFolderAlreadyRegistered(selectedRegistrationFolderValue) ? '已配准' : (registrationMode === 'register' ? '开始配准' : '开始渲染') }}
             </n-button>
             <n-button 
               type="primary"
@@ -348,6 +357,12 @@
                 <n-icon><ExclamationCircleOutlined /></n-icon>
                 配准单张图像通常需要几分钟到十几分钟，具体时间取决于图像大小和数量。
               </p>
+              <div class="guidance-option">
+                <n-radio-group v-model:value="guidanceRegisterMode" name="register-mode">
+                  <n-radio :value="'register'">立即配准并转换（推荐）</n-radio>
+                  <n-radio :value="'convert_only'">仅转换为DZI（不配准）</n-radio>
+                </n-radio-group>
+              </div>
             </div>
             
             <div v-if="guidanceRegistrationInProgress" class="guidance-progress">
@@ -371,7 +386,7 @@
               @click="startGuidanceRegistration"
               :disabled="guidanceRegistrationInProgress"
             >
-              {{ guidanceRegistrationInProgress ? '配准中...' : '立即开始配准' }}
+              {{ guidanceRegistrationInProgress ? (guidanceRegisterMode === 'register' ? '配准中...' : '转换中...') : (guidanceRegisterMode === 'register' ? '立即开始配准' : '仅转换为DZI') }}
             </n-button>
           </div>
         </div>
@@ -395,7 +410,9 @@ import {
   NThing, 
   NTag,
   NProgress,
-  NSelect
+  NSelect,
+  NRadio,
+  NRadioGroup
 } from 'naive-ui'
 import { 
   ReloadOutlined,
@@ -484,6 +501,7 @@ const currentUploadedFolder = ref('')
 const guidanceRegistrationInProgress = ref(false)
 const currentGuidanceProgress = ref(0)
 let guidanceProgressTimer = null
+const guidanceRegisterMode = ref('register') // 'register' 或 'convert_only'
 
 // 文件类型选择相关状态
 const selectedFileType = ref(null)
@@ -539,6 +557,11 @@ const FILE_FORMATS = {
     name: 'QPTIFF 格式',
     description: 'PerkinElmer 数字病理格式',
     extensions: ['.qptiff']
+  },
+  jpg: {
+    name: 'JPG/JPEG 格式',
+    description: '常见静态图像格式',
+    extensions: ['.jpg', '.jpeg']
   },
   kfb: {
     name: 'KFB 格式',
@@ -600,6 +623,11 @@ const fileTypeOptions = [
     description: 'PerkinElmer 数字病理格式'
   },
   {
+    label: 'JPG/JPEG 格式',
+    value: 'jpg',
+    description: '常见静态图像格式 (.jpg, .jpeg)'
+  },
+  {
     label: 'KFB 格式 (江丰生物)',
     value: 'kfb',
     description: '江丰生物病理扫描仪专用格式'
@@ -621,6 +649,9 @@ const isRegistrationTaskInProgress = computed(() => {
 
 // 添加历史任务显示状态控制
 const showHistoryTasks = ref(false)
+
+// 配准弹窗中的处理模式（register: 配准并转换；convert_only: 仅转换为DZI）
+const registrationMode = ref('register')
 
 // 切换历史任务显示状态
 const toggleHistoryTasks = (show) => {
@@ -970,8 +1001,9 @@ const startRegistration = () => {
     folderExists.progress = 0
   }
   
-  // 触发配准操作
-  emit('startRegistration', props.selectedRegistrationFolderValue)
+  // 触发配准/转换操作，将 register 参数一并传递
+  const register = registrationMode.value === 'register'
+  emit('startRegistration', { folder: props.selectedRegistrationFolderValue, register })
 }
 
 const closeResultModal = () => {
@@ -1332,11 +1364,12 @@ const startGuidanceRegistration = async () => {
     }, 1000)
     
     // 调用配准API
-    const response = await registrationService.submitTask(currentUploadedFolder.value)
+    const register = guidanceRegisterMode.value === 'register'
+    const response = await registrationService.submitTask(currentUploadedFolder.value, register)
     
     if (response && response.code === 1 && response.data) {
       const taskData = response.data
-      message.success(`配准任务已启动，任务ID: ${taskData.taskId}`)
+      message.success(`${register ? '配准' : '转换'}任务已启动，任务ID: ${taskData.taskId}`)
       
       // 保存任务信息
       registrationService.saveTaskToLocalStorage(currentUploadedFolder.value, {
@@ -1354,7 +1387,7 @@ const startGuidanceRegistration = async () => {
       // 延迟关闭弹窗并提示
       setTimeout(() => {
         closeRegistrationGuidance()
-        message.info('配准任务已在后台运行，您可以在配准页面查看进度')
+        message.info(`${register ? '配准' : '转换'}任务已在后台运行，您可以在配准页面查看进度`)
         
         // 触发父组件刷新文件列表
         emit('folderUploaded', currentUploadedFolder.value)
@@ -2229,6 +2262,12 @@ const onFileTypeChange = (value) => {
   color: #d46b08;
   font-size: 14px;
   margin-top: 16px;
+}
+
+.guidance-option {
+  margin-top: 16px;
+  padding: 12px 12px 0 12px;
+  border-top: 1px dashed #ffd591;
 }
 
 .guidance-progress {
