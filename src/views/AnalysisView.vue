@@ -359,6 +359,11 @@ const startRegistration = async (payload) => {
       // 关闭配准对话框，因为任务进度会通过任务列表展示
       registrationModalVisible.value = false
       
+      // 若定时器未启动，这里补偿启动一次
+      if (!activeTaskCheckTimer) {
+        activeTaskCheckTimer = setInterval(checkActiveRegistrationTask, 30000)
+      }
+      
       // 等待一段时间后刷新文件列表，以显示配准后的文件
       setTimeout(() => {
         fetchFileList()
@@ -509,12 +514,26 @@ const checkActiveRegistrationTask = async () => {
                   localStorage.removeItem('auto_display_folder')
                 }
               }
+              // 任务终止后，从本地清理该任务
+              registrationService.clearLocalTask(task.folder)
             }
+          } else {
+            // 非正常响应也清理，避免持续轮询
+            registrationService.clearLocalTask(task.folder)
           }
         } catch (error) {
           console.error(`检查任务 ${task.taskId} 状态失败:`, error)
+          // 请求异常也清理本地任务，避免一直轮询
+          registrationService.clearLocalTask(task.folder)
         }
       }
+    }
+    // 若没有活跃任务，停止定时器
+    const leftTasks = registrationService.getAllLocalTasks()
+    const hasActive = Object.values(leftTasks).some(t => t.status === 'pending' || t.status === 'processing')
+    if (!hasActive && activeTaskCheckTimer) {
+      clearInterval(activeTaskCheckTimer)
+      activeTaskCheckTimer = null
     }
   } catch (error) {
     console.error("检查活跃任务失败:", error)

@@ -54,17 +54,23 @@ const registrationService = {
    * @returns {Promise} - 返回包含任务进度信息的Promise
    */
   async getTaskProgress(taskId) {
-    const response = await api.get(`/svs/progress/${taskId}`);
-    
-    // 如果任务已完成或失败，重置进行中状态
-    if (response && response.code === 1 && response.data) {
-      const status = response.data.status;
-      if (status === 'completed' || status === 'failed' || status === 'error') {
-        isRegistrationInProgress = false;
+    try {
+      const response = await api.get(`/svs/progress/${taskId}`);
+      
+      // 如果任务已完成或失败，重置进行中状态
+      if (response && response.code === 1 && response.data) {
+        const status = response.data.status;
+        if (status === 'completed' || status === 'failed' || status === 'error') {
+          isRegistrationInProgress = false;
+        }
       }
+      
+      return response;
+    } catch (error) {
+      // 请求失败时也认为当前没有进行中的任务，向上抛出让调用方处理清理
+      isRegistrationInProgress = false;
+      throw error;
     }
-    
-    return response;
   },
 
   /**
