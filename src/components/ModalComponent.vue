@@ -168,7 +168,8 @@
                   </div>
                 </div>
                 <div class="upload-progress-wrapper">
-                  <div v-if="folder.status === 'uploading'" class="upload-progress">
+                  <div v-if="folder.status === 'queued'" class="upload-status waiting">等待上传</div>
+                  <div v-else-if="folder.status === 'uploading'" class="upload-progress">
                     <div class="progress-bar">
                       <div class="progress-bar-inner" :style="{ width: `${folder.progress}%` }"></div>
                     </div>
@@ -188,6 +189,9 @@
                     <button class="delete-btn" @click="removeUploadedFolder(index)">×</button>
                   </div>
                 </div>
+              </div>
+              <div class="queue-summary">
+                已选择 {{ uploadedFolders.length }} 个文件夹，队列中 {{ uploadedFolders.filter(f => f.status === 'queued').length }} 个等待上传
               </div>
             </template>
             <div v-else class="no-folders-selected">
@@ -212,6 +216,11 @@
             </label>
           </div>
           <div class="footer-right">
+            <button 
+              class="modal-btn primary" 
+              :disabled="uploadedFolders.filter(f => f.status === 'queued').length === 0"
+              @click="startAllUploads"
+            >开始全部上传</button>
             <button class="modal-btn" @click="closeUploadModal">关闭</button>
           </div>
         </div>
@@ -804,12 +813,12 @@ const handleFileSelection = (event) => {
     if (firstFilePath && firstFilePath.indexOf("/") !== -1) {
       folderName.value = firstFilePath.substring(0, firstFilePath.indexOf("/"))
       
-      // 添加到上传队列
+      // 添加到上传队列（状态设为排队 queued）
       const newFolder = {
         name: folderName.value,
         fileCount: selectedFiles.value.length,
         files: selectedFiles.value,
-        status: 'uploading',
+        status: 'queued',
         progress: 0,
         fileType: selectedFileType.value,
         invalidFileCount: validationResult.invalidFiles.length
@@ -824,18 +833,21 @@ const handleFileSelection = (event) => {
         message.success(`文件格式验证通过，共 ${selectedFiles.value.length} 个文件`)
       }
       
-      // 自动开始上传
-      startUploadFolder(uploadedFolders.value.length - 1)
+      // 改为队列上传，由“开始全部上传”触发
     }
   }
   
   emit('handleFileSelection', event)
 }
 
-  // 开始上传指定索引的文件夹
+// 开始上传指定索引的文件夹
 const startUploadFolder = async (index) => {
   const folder = uploadedFolders.value[index]
-  if (!folder || folder.status !== 'uploading') return
+  if (!folder || (folder.status !== 'uploading' && folder.status !== 'queued')) return
+  // 将排队状态切换为上传中
+  if (folder.status === 'queued') {
+    folder.status = 'uploading'
+  }
   
   const formData = new FormData()
   const userStore = useUserStore()
@@ -904,6 +916,20 @@ const startUploadFolder = async (index) => {
   } catch (error) {
     uploadedFolders.value[index].status = 'error'
     message.error(`文件夹 ${folder.name} 上传失败: ${error.message}`)
+  }
+}
+
+// 开始全部上传（顺序执行队列）
+const startAllUploads = async () => {
+  for (let i = 0; i < uploadedFolders.value.length; i++) {
+    const f = uploadedFolders.value[i]
+    if (f.status === 'queued') {
+      try {
+        await startUploadFolder(i)
+      } catch (e) {
+        // 单个失败不中断后续
+      }
+    }
   }
 }
 
@@ -1884,6 +1910,10 @@ const onFileTypeChange = (value) => {
   width: 100%;
 }
 
+.upload-status.waiting {
+  color: #8c9bab;
+}
+
 .upload-status.success,
 .registration-status.success {
   color: #52c41a;
@@ -2391,5 +2421,11 @@ const onFileTypeChange = (value) => {
   background: linear-gradient(135deg, #d9d9d9 0%, #bfbfbf 100%);
   transform: none;
   box-shadow: 0 3px 12px rgba(217, 217, 217, 0.25);
+}
+
+.queue-summary {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #666;
 }
 </style> 
