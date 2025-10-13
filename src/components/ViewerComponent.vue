@@ -7,7 +7,10 @@
         :key="index"
         class="viewer-wrapper"
         :class="[getViewerClass(index), { 'selected-viewer': selectedViewerIndex === index }]"
+        :draggable="hasDzi(index)"
         @click="selectViewer(index)"
+        @dragstart="(e) => handleImageDragStart(e, index)"
+        style="cursor: grab;"
       >
         <!-- 添加图像标题栏 -->
         <div class="image-title-bar">
@@ -98,7 +101,10 @@
       <div 
         class="viewer-wrapper big-viewer"
         :class="{ 'selected-viewer': selectedViewerIndex === 0 }"
+        :draggable="hasDzi(0)"
         @click="selectViewer(0)"
+        @dragstart="(e) => handleImageDragStart(e, 0)"
+        style="cursor: grab;"
       >
         <div class="image-title-bar">
           <span class="image-title">{{ viewerFileNames[0] || '未加载图像' }}</span>
@@ -137,7 +143,10 @@
           :key="index"
           class="viewer-wrapper small-viewer"
           :class="{ 'selected-viewer': selectedViewerIndex === index }"
+          :draggable="hasDzi(index)"
           @click="selectViewer(index)"
+          @dragstart="(e) => handleImageDragStart(e, index)"
+          style="cursor: grab;"
         >
           <div class="image-title-bar">
             <span class="image-title">{{ viewerFileNames[index] || '未加载图像' }}</span>
@@ -176,7 +185,10 @@
           :key="index - 1"
           class="viewer-wrapper small-viewer"
           :class="{ 'selected-viewer': selectedViewerIndex === index - 1 }"
+          :draggable="hasDzi(index - 1)"
           @click="selectViewer(index - 1)"
+          @dragstart="(e) => handleImageDragStart(e, index - 1)"
+          style="cursor: grab;"
         >
           <div class="image-title-bar">
             <span class="image-title">{{ viewerFileNames[index - 1] || '未加载图像' }}</span>
@@ -209,7 +221,10 @@
       <div 
         class="viewer-wrapper big-viewer"
         :class="{ 'selected-viewer': selectedViewerIndex === 4 }"
+        :draggable="hasDzi(4)"
         @click="selectViewer(4)"
+        @dragstart="(e) => handleImageDragStart(e, 4)"
+        style="cursor: grab;"
       >
         <div class="image-title-bar">
           <span class="image-title">{{ viewerFileNames[4] || '未加载图像' }}</span>
@@ -321,6 +336,54 @@ const handleScanInfoLoadError = (e) => {
 // 关闭图像
 const closeImage = (index) => {
   emit('closeImage', index);
+}
+
+// 处理图片拖动到新窗口
+const handleImageDragStart = (event, index) => {
+  // 如果该位置没有图片，阻止拖动
+  if (!hasDzi(index)) {
+    event.preventDefault()
+    return
+  }
+  
+  // 获取当前图片信息
+  const fileName = viewerStore.viewerFileNames[index]
+  const folderName = viewerStore.viewerFolderNames[index]
+  
+  if (!fileName) {
+    event.preventDefault()
+    return
+  }
+  
+  // 构建新窗口的URL参数（单图模式）
+  const params = new URLSearchParams({
+    mode: 'single',
+    folder: folderName,
+    file: fileName,
+    layout: 1  // 单图模式
+  })
+  
+  const newWindowUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`
+  
+  // 设置拖动数据
+  event.dataTransfer.effectAllowed = 'link'
+  event.dataTransfer.setData('text/uri-list', newWindowUrl)
+  event.dataTransfer.setData('text/plain', newWindowUrl)
+  
+  // 存储图片信息到 localStorage
+  const dragData = {
+    type: 'single',
+    folder: folderName,
+    file: fileName,
+    layout: 1,
+    timestamp: Date.now()
+  }
+  localStorage.setItem('drag_open_data', JSON.stringify(dragData))
+  
+  // 拖动后打开新窗口
+  setTimeout(() => {
+    window.open(newWindowUrl, '_blank')
+  }, 100)
 }
 
 // 获取布局类名

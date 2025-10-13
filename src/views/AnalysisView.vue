@@ -544,10 +544,99 @@ const checkActiveRegistrationTask = async () => {
 let activeTaskCheckTimer = null
 
 // 在组件挂载时，设置定期检查任务状态
-onMounted(() => {
+// 从URL参数或localStorage加载拖动打开的图片
+const handleDragOpenedWindow = async () => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const mode = urlParams.get('mode')
+  const page = urlParams.get('page')
+  const layout = urlParams.get('layout')
+  const folder = urlParams.get('folder')
+  const file = urlParams.get('file')
+  
+  // 尝试从localStorage读取拖动数据
+  const dragDataStr = localStorage.getItem('drag_open_data')
+  let dragData = null
+  if (dragDataStr) {
+    try {
+      dragData = JSON.parse(dragDataStr)
+      // 检查时间戳，只使用10秒内的数据
+      if (Date.now() - dragData.timestamp > 10000) {
+        localStorage.removeItem('drag_open_data')
+        dragData = null
+      }
+    } catch (e) {
+      console.error('解析拖动数据失败:', e)
+      localStorage.removeItem('drag_open_data')
+    }
+  }
+  
+  // 处理单图模式（从图片拖动打开）
+  if (mode === 'single' || (dragData && dragData.type === 'single')) {
+    const targetFolder = folder || dragData?.folder
+    const targetFile = file || dragData?.file
+    
+    if (targetFolder && targetFile) {
+      // 切换到单图模式
+      viewerStore.changeLayout(1)
+      
+      // 展开文件夹
+      expandedFolders.value[targetFolder] = true
+      
+      // 构建DZI URL并加载图片（需要加上 processed 路径前缀）
+      const dziUrl = `/api/dzi/processed/${encodeURIComponent(targetFolder)}/${encodeURIComponent(targetFile)}/`
+      viewerStore.selectedViewerIndex = 0
+      viewerStore.updateViewerDziUrl(dziUrl, targetFile, targetFolder)
+      
+      message.success(`已加载图片: ${targetFile}`)
+      
+      // 清除localStorage数据
+      localStorage.removeItem('drag_open_data')
+    }
+    return
+  }
+  
+  // 处理多图翻页模式（从翻页按钮拖动打开）
+  if (page || (dragData && dragData.type === 'page')) {
+    const targetPage = parseInt(page) || dragData?.page
+    const targetLayout = parseInt(layout) || dragData?.layout
+    const allImages = dragData?.allImageFiles || []
+    
+    console.log('多图模式拖动加载:', { targetPage, targetLayout, imagesCount: allImages.length })
+    
+    if (targetPage && targetLayout && allImages.length > 0) {
+      // 切换到目标布局
+      viewerStore.changeLayout(targetLayout)
+      
+      // 等待一小段时间确保布局初始化完成
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // 设置所有图片并显示目标页
+      viewerStore.setAllImageFiles(allImages)
+      viewerStore.displayImagesByPage(targetPage)
+      
+      message.success(`已加载第 ${targetPage} 页，共 ${allImages.length} 张图片`)
+      
+      // 清除localStorage数据
+      localStorage.removeItem('drag_open_data')
+    } else {
+      console.warn('多图模式数据不完整:', { targetPage, targetLayout, hasImages: allImages.length > 0 })
+      // 如果没有图片数据，尝试从当前文件列表重新加载
+      if (targetPage && targetLayout && allImages.length === 0) {
+        message.warning('未获取到图片数据，请重新加载')
+      }
+      localStorage.removeItem('drag_open_data')
+    }
+    return
+  }
+}
+
+onMounted(async () => {
   // 初始化操作
-  fetchFileList()
+  await fetchFileList()
   initViewers()
+  
+  // 检查是否是拖动打开的窗口
+  await handleDragOpenedWindow()
   
   // 立即检查一次活跃任务
   checkActiveRegistrationTask()

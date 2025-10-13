@@ -69,17 +69,23 @@
         <n-space class="pagination-controls" style="margin-left: 10px;">
           <n-tooltip trigger="hover" placement="bottom">
             <template #trigger>
-              <n-button 
-                circle 
-                type="info" 
-                size="small" 
-                @click="prevPage"
-                :disabled="!paginationInfo.hasPrevPage"
+              <div
+                draggable="true"
+                @dragstart="handlePrevPageDragStart"
+                style="display: inline-block;"
               >
-                <n-icon><LeftOutlined /></n-icon>
-              </n-button>
+                <n-button 
+                  circle 
+                  type="info" 
+                  size="small" 
+                  @click="prevPage"
+                  :disabled="!paginationInfo.hasPrevPage"
+                >
+                  <n-icon><LeftOutlined /></n-icon>
+                </n-button>
+              </div>
             </template>
-            上一页
+            上一页（可拖动到新窗口）
           </n-tooltip>
           
           <n-tooltip trigger="hover" placement="bottom">
@@ -93,17 +99,23 @@
           
           <n-tooltip trigger="hover" placement="bottom">
             <template #trigger>
-              <n-button 
-                circle 
-                type="info" 
-                size="small" 
-                @click="nextPage"
-                :disabled="!paginationInfo.hasNextPage"
+              <div
+                draggable="true"
+                @dragstart="handleNextPageDragStart"
+                style="display: inline-block; cursor: grab;"
               >
-                <n-icon><RightOutlined /></n-icon>
-              </n-button>
+                <n-button 
+                  circle 
+                  type="info" 
+                  size="small" 
+                  @click="nextPage"
+                  :disabled="!paginationInfo.hasNextPage"
+                >
+                  <n-icon><RightOutlined /></n-icon>
+                </n-button>
+              </div>
             </template>
-            下一页
+            下一页（可拖动到新窗口）
           </n-tooltip>
         </n-space>
       </div>
@@ -214,6 +226,115 @@ const prevPage = () => {
   if (paginationInfo.value.hasPrevPage) {
     viewerStore.prevPage()
   }
+}
+
+// 处理翻页按钮拖动到新窗口
+const handleNextPageDragStart = (event) => {
+  if (!paginationInfo.value.hasNextPage) {
+    event.preventDefault()
+    return
+  }
+  
+  // 计算下一页的页码
+  const nextPageNum = paginationInfo.value.currentPage + 1
+  
+  // 获取当前所有图片数据
+  const allImages = viewerStore.allImageFiles
+  
+  console.log('拖动下一页按钮:', {
+    currentPage: paginationInfo.value.currentPage,
+    nextPage: nextPageNum,
+    layout: viewerStore.layoutType,
+    imagesCount: allImages.length
+  })
+  
+  // 构建新窗口的URL参数
+  const params = new URLSearchParams({
+    page: nextPageNum,
+    layout: viewerStore.layoutType
+  })
+  
+  const newWindowUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`
+  
+  // 设置拖动数据
+  event.dataTransfer.effectAllowed = 'link'
+  event.dataTransfer.setData('text/uri-list', newWindowUrl)
+  event.dataTransfer.setData('text/plain', newWindowUrl)
+  
+  // 存储页面状态到 localStorage（供新窗口读取）
+  const dragData = {
+    type: 'page',
+    page: nextPageNum,
+    layout: viewerStore.layoutType,
+    allImageFiles: allImages,
+    timestamp: Date.now()
+  }
+  
+  try {
+    localStorage.setItem('drag_open_data', JSON.stringify(dragData))
+    console.log('已保存拖动数据到 localStorage')
+  } catch (e) {
+    console.error('保存拖动数据失败:', e)
+  }
+  
+  // 监听拖放结束事件，如果是拖出窗口则打开新窗口
+  setTimeout(() => {
+    window.open(newWindowUrl, '_blank')
+  }, 100)
+}
+
+const handlePrevPageDragStart = (event) => {
+  if (!paginationInfo.value.hasPrevPage) {
+    event.preventDefault()
+    return
+  }
+  
+  // 计算上一页的页码
+  const prevPageNum = paginationInfo.value.currentPage - 1
+  
+  // 获取当前所有图片数据
+  const allImages = viewerStore.allImageFiles
+  
+  console.log('拖动上一页按钮:', {
+    currentPage: paginationInfo.value.currentPage,
+    prevPage: prevPageNum,
+    layout: viewerStore.layoutType,
+    imagesCount: allImages.length
+  })
+  
+  // 构建新窗口的URL参数
+  const params = new URLSearchParams({
+    page: prevPageNum,
+    layout: viewerStore.layoutType
+  })
+  
+  const newWindowUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`
+  
+  // 设置拖动数据
+  event.dataTransfer.effectAllowed = 'link'
+  event.dataTransfer.setData('text/uri-list', newWindowUrl)
+  event.dataTransfer.setData('text/plain', newWindowUrl)
+  
+  // 存储页面状态到 localStorage
+  const dragData = {
+    type: 'page',
+    page: prevPageNum,
+    layout: viewerStore.layoutType,
+    allImageFiles: allImages,
+    timestamp: Date.now()
+  }
+  
+  try {
+    localStorage.setItem('drag_open_data', JSON.stringify(dragData))
+    console.log('已保存拖动数据到 localStorage')
+  } catch (e) {
+    console.error('保存拖动数据失败:', e)
+  }
+  
+  // 拖动后打开新窗口
+  setTimeout(() => {
+    window.open(newWindowUrl, '_blank')
+  }, 100)
 }
 
 // 用户下拉菜单选项
