@@ -13,6 +13,7 @@
       @open-upload-modal="openUploadModal"
       @toggleStainInfo="toggleStainInfo"
       @open-manual-modal="openManualModal"
+      @toggle-fullscreen="toggleFullscreen"
     />
 
     <!-- 主体区域：左侧为文件目录列表，右侧为图像展示区域 -->
@@ -25,11 +26,13 @@
         :folder-dzi-files="folderDziFiles"
         :action-menu-visible="actionMenuVisible"
         :file-action-menu-visible="fileActionMenuVisible"
+        :is-collapsed="isSidebarCollapsed"
         @update:selected-folder="updateSelectedFolder"
         @update:expanded-folders="updateExpandedFolders"
         @update:folder-dzi-files="updateFolderDziFiles"
         @update:action-menu-visible="updateActionMenuVisible"
         @update:file-action-menu-visible="updateFileActionMenuVisible"
+        @update:is-collapsed="isSidebarCollapsed = $event"
         @fetch-file-list="fetchFileList"
         @toggle-folder="toggleFolder"
         @select-dzi-item="selectDziItem"
@@ -127,10 +130,24 @@ const viewerFileNames = computed(() => viewerStore.viewerFileNames)
 
 // 导航栏折叠状态
 const isHeaderCollapsed = ref(false)
+// 侧边栏折叠状态
+const isSidebarCollapsed = ref(false)
 
 // 切换导航栏显示/隐藏
 const toggleHeader = () => {
   isHeaderCollapsed.value = !isHeaderCollapsed.value
+}
+
+// 切换侧边栏显示/隐藏
+const toggleSidebar = () => {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value
+}
+
+// 切换全屏模式（同时收起/展开侧边栏和顶部栏）
+const toggleFullscreen = () => {
+  const targetState = !(isHeaderCollapsed.value && isSidebarCollapsed.value)
+  isHeaderCollapsed.value = targetState
+  isSidebarCollapsed.value = targetState
 }
 
 const changeLayout = (num) => viewerStore.changeLayout(num)

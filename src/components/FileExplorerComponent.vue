@@ -1,10 +1,10 @@
 <template>
   <n-layout-sider
-    :width="isCollapsed ? 64 : 320"
+    :width="props.isCollapsed ? 64 : 320"
     :collapsed-width="64"
     :show-trigger="false"
     class="file-sider"
-    :style="{ width: isCollapsed ? '64px !important' : '320px !important' }"
+    :style="{ width: props.isCollapsed ? '64px !important' : '320px !important' }"
   >
     <!-- 侧边栏头部 -->
     <div class="sidebar-header">
@@ -13,7 +13,7 @@
         <template #trigger>
           <n-button circle type="default" size="small" @click="toggleSidebar" class="collapse-btn">
             <n-icon>
-              <template v-if="isCollapsed">
+              <template v-if="props.isCollapsed">
                 <MenuUnfoldOutlined />
               </template>
               <template v-else>
@@ -22,10 +22,10 @@
             </n-icon>
           </n-button>
         </template>
-        {{ isCollapsed ? '展开侧边栏' : '收起侧边栏' }}
+        {{ props.isCollapsed ? '展开侧边栏' : '收起侧边栏' }}
       </n-tooltip>
       
-      <template v-if="!isCollapsed">
+      <template v-if="!props.isCollapsed">
         <n-button circle type="primary" size="small" @click="fetchFileList">
           <n-icon><ReloadOutlined /></n-icon>
         </n-button>
@@ -245,6 +245,10 @@ const props = defineProps({
   loading: {
     type: Object,
     default: () => ({})
+  },
+  isCollapsed: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -255,6 +259,7 @@ const emit = defineEmits([
   'update:folderDziFiles',
   'update:actionMenuVisible',
   'update:fileActionMenuVisible',
+  'update:isCollapsed',
   'fetchFileList', 
   'toggleFolder',
   'selectDziItem',
@@ -276,8 +281,6 @@ const recordingTime = ref(0)
 let timer = null
 let recorder = null
 
-// 侧边栏折叠状态
-const isCollapsed = ref(false)
 
 // 获取文件列表
 const fetchFileList = () => {
@@ -789,11 +792,11 @@ const closeAllMenus = (e) => {
 
 // 切换侧边栏折叠状态
 const toggleSidebar = () => {
-  isCollapsed.value = !isCollapsed.value;
+  emit('update:isCollapsed', !props.isCollapsed);
   // 如果收起，则将宽度设置为collapsed-width，否则设置为width
-  const targetWidth = isCollapsed.value ? 64 : 320;
-  const targetMinWidth = isCollapsed.value ? 64 : 320;
-  const targetFlex = isCollapsed.value ? '0 0 64px !important' : '0 0 320px !important';
+  const targetWidth = props.isCollapsed ? 64 : 320;
+  const targetMinWidth = props.isCollapsed ? 64 : 320;
+  const targetFlex = props.isCollapsed ? '0 0 64px !important' : '0 0 320px !important';
 
   // 使用nextTick确保样式更新
   nextTick(() => {

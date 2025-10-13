@@ -118,6 +118,22 @@
             下一页（可拖动到新窗口）
           </n-tooltip>
         </n-space>
+        
+        <!-- 全屏模式切换按钮 -->
+        <n-tooltip trigger="hover" placement="bottom">
+          <template #trigger>
+            <n-button 
+              circle 
+              type="primary" 
+              size="small" 
+              @click="handleToggleFullscreen"
+              style="margin-left: 10px;"
+            >
+              <n-icon><FullscreenOutlined /></n-icon>
+            </n-button>
+          </template>
+          全屏查看（隐藏侧边栏和顶部栏）
+        </n-tooltip>
       </div>
 
       <div class="user-info">
@@ -160,7 +176,7 @@ import {
   NTooltip,
   useMessage
 } from 'naive-ui'
-import { DownOutlined, UpOutlined, LeftOutlined, RightOutlined, LogoutOutlined, UserOutlined, SyncOutlined, ExperimentOutlined, QuestionCircleOutlined } from '@vicons/antd'
+import { DownOutlined, UpOutlined, LeftOutlined, RightOutlined, LogoutOutlined, UserOutlined, SyncOutlined, ExperimentOutlined, QuestionCircleOutlined, FullscreenOutlined } from '@vicons/antd'
 import { useUserStore } from '@/stores/user'
 import { useViewerStore } from '@/stores/viewer'
 
@@ -183,7 +199,8 @@ const emit = defineEmits([
   'openUploadModal',
   'update:isSyncAnnotation',
   'toggleStainInfo',
-  'openManualModal'
+  'openManualModal',
+  'toggleFullscreen'
 ])
 
 const router = useRouter()
@@ -386,6 +403,11 @@ const showScreenRecorder = ref(false)
 
 const openScreenRecorder = () => {
   showScreenRecorder.value = true
+}
+
+// 触发全屏模式切换
+const handleToggleFullscreen = () => {
+  emit('toggleFullscreen')
 }
 </script>
 
